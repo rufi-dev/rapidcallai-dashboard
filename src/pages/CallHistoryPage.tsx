@@ -1,0 +1,303 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Button, Card } from "../components/ui";
+import { PhoneCall } from "lucide-react";
+import { getCall, listCalls, type CallRecord, type CallSummary } from "../lib/api";
+import { toast } from "sonner";
+
+function formatDuration(sec: number | null): string {
+  if (sec == null) return "—";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function fmtTs(ms: number | null): string {
+  if (!ms) return "—";
+  try {
+    return new Date(ms).toLocaleString();
+  } catch {
+    return String(ms);
+  }
+}
+
+export function CallHistoryPage() {
+  const nav = useNavigate();
+  const params = useParams();
+  const selectedFromUrl = params.id ?? null;
+
+  const [calls, setCalls] = useState<CallSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [selectedId, setSelectedId] = useState<string | null>(selectedFromUrl);
+  const [detail, setDetail] = useState<CallRecord | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const pollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const rows = await listCalls();
+        if (!mounted) return;
+        setCalls(rows);
+      } catch (e) {
+        toast.error(`Failed to load calls: ${e instanceof Error ? e.message : "Unknown error"}`);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setSelectedId(selectedFromUrl);
+  }, [selectedFromUrl]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+
+    let mounted = true;
+    setDetailLoading(true);
+    (async () => {
+      try {
+        const c = await getCall(selectedId);
+        if (!mounted) return;
+        setDetail(c);
+      } catch (e) {
+        toast.error(`Failed to load call: ${e instanceof Error ? e.message : "Unknown error"}`);
+      } finally {
+        if (mounted) setDetailLoading(false);
+      }
+    })();
+
+    // Poll while recording is not ready (egress can take a bit to finalize).
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const c = await getCall(selectedId);
+        setDetail(c);
+        if (c.recording && "kind" in c.recording && c.recording.kind === "egress_s3") {
+          if (c.recording.status === "ready" || c.recording.status === "failed") {
+            if (pollRef.current) {
+              window.clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+          }
+        } else {
+          if (pollRef.current) {
+            window.clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000);
+
+    return () => {
+      mounted = false;
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [selectedId]);
+
+  const countLabel = useMemo(() => (loading ? "Loading…" : `${calls.length} calls`), [calls.length, loading]);
+
+  const panelOpen = Boolean(selectedId);
+
+  const recordingUrl = useMemo(() => {
+    if (!detail?.recording) return null;
+    if (!("url" in detail.recording)) return null;
+    const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
+    return `${base}${detail.recording.url}`;
+  }, [detail?.recording]);
+
+  return (
+    <div className={panelOpen ? "grid gap-6 xl:grid-cols-[1fr_520px] items-start" : "space-y-6"}>
+      <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-2xl font-semibold tracking-tight">Call history</div>
+          <div className="mt-1 text-sm text-slate-300">Sessions from web tests (and later real phone calls).</div>
+        </div>
+        <div className="rounded-2xl bg-brand-500/10 px-4 py-2 text-sm text-brand-200 shadow-glow">
+          <span className="inline-flex items-center gap-2">
+            <PhoneCall size={16} /> {countLabel}
+          </span>
+        </div>
+      </div>
+
+      <Card>
+        <div className="overflow-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-slate-400">
+              <tr className="border-b border-white/10">
+                <th className="px-3 py-3 font-medium">Call</th>
+                <th className="px-3 py-3 font-medium">Agent</th>
+                <th className="px-3 py-3 font-medium">To</th>
+                <th className="px-3 py-3 font-medium">Duration</th>
+                <th className="px-3 py-3 font-medium">Outcome</th>
+                <th className="px-3 py-3 font-medium text-right">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
+                    Loading…
+                  </td>
+                </tr>
+              ) : calls.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
+                    No calls yet. Start a Talk session and you’ll see it here.
+                  </td>
+                </tr>
+              ) : (
+                calls.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-white/5 last:border-b-0 hover:bg-white/5 cursor-pointer"
+                    onClick={() => nav(`/app/calls/${encodeURIComponent(c.id)}`)}
+                    title="Open call"
+                  >
+                    <td className="px-3 py-3 font-mono text-xs text-slate-300">{c.id}</td>
+                    <td className="px-3 py-3 text-slate-100">{c.agentName}</td>
+                    <td className="px-3 py-3 text-slate-300">{c.to || "—"}</td>
+                    <td className="px-3 py-3 text-slate-300">{formatDuration(c.durationSec)}</td>
+                    <td className="px-3 py-3">
+                      <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-200">{c.outcome}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right text-slate-200">
+                      {typeof c.costUsd === "number" ? `$${c.costUsd.toFixed(2)}` : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      </div>
+
+      {panelOpen ? (
+        <aside className="sticky top-[84px] h-[calc(100vh-120px)] overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5 flex flex-col">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">Call</div>
+            <button
+              onClick={() => nav("/app/calls")}
+              className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-white/10"
+              title="Close"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="mt-4 flex-1 min-h-0 overflow-auto scrollbar-brand pr-1">
+            {detailLoading ? (
+              <div className="rounded-3xl bg-slate-950/40 p-5 text-sm text-slate-300">Loading…</div>
+            ) : !detail ? (
+              <div className="rounded-3xl bg-slate-950/40 p-5 text-sm text-slate-300">Not found.</div>
+            ) : (
+              <div className="space-y-5">
+                <div className="rounded-3xl bg-slate-950/35 p-4 text-sm">
+                  <div className="text-xs text-slate-400 font-mono">{detail.id}</div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
+                    <div>
+                      <div className="text-xs text-slate-400">Agent</div>
+                      <div className="text-slate-100">{detail.agentName}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">To</div>
+                      <div className="text-slate-100">{detail.to}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Outcome</div>
+                      <div className="text-slate-100">{detail.outcome}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Duration</div>
+                      <div className="text-slate-100">{formatDuration(detail.durationSec)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Started</div>
+                      <div className="text-slate-100">{fmtTs(detail.startedAt)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Ended</div>
+                      <div className="text-slate-100">{fmtTs(detail.endedAt)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-black/20 p-4">
+                  <div className="text-sm font-semibold">Recording</div>
+                  <div className="mt-2">
+                    {detail.recording && "kind" in detail.recording && detail.recording.kind === "egress_s3" ? (
+                      detail.recording.status === "ready" && recordingUrl ? (
+                        <audio controls src={recordingUrl} className="w-full" />
+                      ) : (
+                        <div className="text-sm text-slate-300">
+                          Recording is <span className="text-slate-100">{detail.recording.status}</span>…
+                          <div className="mt-2">
+                            <Button variant="secondary" onClick={() => setSelectedId((x) => x)}>
+                              Refresh
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    ) : recordingUrl ? (
+                      <audio controls src={recordingUrl} className="w-full" />
+                    ) : (
+                      <div className="text-sm text-slate-300">No recording saved yet.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-black/20 p-4">
+                  <div className="text-sm font-semibold">Transcript</div>
+                  <div className="mt-3 space-y-3">
+                    {detail.transcript?.length ? (
+                      detail.transcript.map((t, idx) => (
+                        <div
+                          key={`${idx}-${t.firstReceivedTime ?? 0}`}
+                          className={[
+                            "rounded-2xl p-3",
+                            t.role === "user"
+                              ? "bg-brand-500/12 shadow-[0_0_0_1px_rgba(0,240,106,.16)]"
+                              : "bg-slate-950/45 shadow-[0_0_0_1px_rgba(255,255,255,.06)]",
+                          ].join(" ")}
+                        >
+                          <div className={t.role === "user" ? "text-xs text-brand-200" : "text-xs text-slate-300"}>
+                            {t.speaker}
+                          </div>
+                          <div className="mt-1 whitespace-pre-wrap text-sm text-slate-100">{t.text}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-300">No transcript saved yet.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+      ) : null}
+    </div>
+  );
+}
+
+
