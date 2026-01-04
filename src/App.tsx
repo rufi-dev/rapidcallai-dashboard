@@ -6,6 +6,7 @@ import { KnowledgeBasePage } from "./pages/KnowledgeBasePage";
 import { CallHistoryPage } from "./pages/CallHistoryPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { PhoneNumbersPage } from "./pages/PhoneNumbersPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { isAuthed } from "./lib/auth";
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/:id" element={<AgentDetailPage />} />
           <Route path="knowledge" element={<KnowledgeBasePage />} />
+          <Route path="phone-numbers" element={<PhoneNumbersPage />} />
           <Route path="calls" element={<CallHistoryPage />} />
           <Route path="calls/:id" element={<CallHistoryPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />

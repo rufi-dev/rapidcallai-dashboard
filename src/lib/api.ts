@@ -101,6 +101,39 @@ export type AgentAnalytics = {
   };
 };
 
+export type Workspace = {
+  id: string;
+  name: string;
+  twilioSubaccountSid: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type PhoneNumber = {
+  id: string;
+  workspaceId: string;
+  e164: string;
+  label: string;
+  provider: "twilio";
+  status: "unconfigured" | "ready" | "error";
+  twilioNumberSid: string | null;
+  inboundAgentId: string | null;
+  outboundAgentId: string | null;
+  allowedInboundCountries: string[];
+  allowedOutboundCountries: string[];
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TwilioAvailableNumber = {
+  phoneNumber: string;
+  friendlyName: string | null;
+  locality: string | null;
+  region: string | null;
+  isoCountry: string;
+  capabilities: null | Record<string, unknown>;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
 
 async function readError(res: Response): Promise<string> {
@@ -208,6 +241,99 @@ export async function getAgentAnalytics(id: string): Promise<AgentAnalytics> {
   const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(id)}/analytics`);
   if (!res.ok) throw new Error(`getAgentAnalytics failed: ${await readError(res)}`);
   return (await res.json()) as AgentAnalytics;
+}
+
+export async function listPhoneNumbers(workspaceId?: string): Promise<PhoneNumber[]> {
+  const qs = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
+  const res = await fetch(`${API_BASE}/api/phone-numbers${qs}`);
+  if (!res.ok) throw new Error(`listPhoneNumbers failed: ${await readError(res)}`);
+  const data = (await res.json()) as { phoneNumbers: PhoneNumber[] };
+  return data.phoneNumbers;
+}
+
+export async function createPhoneNumber(input: {
+  workspaceId?: string;
+  e164: string;
+  label?: string;
+}): Promise<PhoneNumber> {
+  const res = await fetch(`${API_BASE}/api/phone-numbers`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`createPhoneNumber failed: ${await readError(res)}`);
+  const data = (await res.json()) as { phoneNumber: PhoneNumber };
+  return data.phoneNumber;
+}
+
+export async function updatePhoneNumber(
+  id: string,
+  input: {
+    label?: string;
+    inboundAgentId?: string | null;
+    outboundAgentId?: string | null;
+    allowedInboundCountries?: string[] | string;
+    allowedOutboundCountries?: string[] | string;
+  }
+): Promise<PhoneNumber> {
+  const res = await fetch(`${API_BASE}/api/phone-numbers/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`updatePhoneNumber failed: ${await readError(res)}`);
+  const data = (await res.json()) as { phoneNumber: PhoneNumber };
+  return data.phoneNumber;
+}
+
+export async function deletePhoneNumber(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/phone-numbers/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`deletePhoneNumber failed: ${await readError(res)}`);
+}
+
+export async function ensureTwilioSubaccount(workspaceId: string): Promise<Workspace> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${encodeURIComponent(workspaceId)}/twilio/subaccount`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) throw new Error(`ensureTwilioSubaccount failed: ${await readError(res)}`);
+  const data = (await res.json()) as { workspace: Workspace };
+  return data.workspace;
+}
+
+export async function searchTwilioNumbers(input: {
+  workspaceId: string;
+  country: string;
+  type: "local" | "tollfree";
+  contains?: string;
+  limit?: number;
+}): Promise<TwilioAvailableNumber[]> {
+  const qs = new URLSearchParams();
+  qs.set("country", input.country);
+  qs.set("type", input.type);
+  if (input.contains) qs.set("contains", input.contains);
+  if (input.limit) qs.set("limit", String(input.limit));
+  const res = await fetch(
+    `${API_BASE}/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/available-numbers?${qs.toString()}`
+  );
+  if (!res.ok) throw new Error(`searchTwilioNumbers failed: ${await readError(res)}`);
+  const data = (await res.json()) as { numbers: TwilioAvailableNumber[] };
+  return data.numbers;
+}
+
+export async function buyTwilioNumber(input: {
+  workspaceId: string;
+  phoneNumber: string;
+  label?: string;
+}): Promise<{ phoneNumber: PhoneNumber }> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/buy-number`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phoneNumber: input.phoneNumber, label: input.label }),
+  });
+  if (!res.ok) throw new Error(`buyTwilioNumber failed: ${await readError(res)}`);
+  return (await res.json()) as { phoneNumber: PhoneNumber };
 }
 
 

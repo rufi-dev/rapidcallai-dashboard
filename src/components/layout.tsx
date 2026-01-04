@@ -4,6 +4,7 @@ import {
   BookOpen,
   Headphones,
   LogOut,
+  Phone,
   PhoneCall,
   Settings,
 } from "lucide-react";
@@ -75,6 +76,7 @@ export function AppShell() {
             <div className="mt-5 space-y-1">
               <NavItem to="/app/agents" icon={<Headphones size={18} />} label="Agents" />
               <NavItem to="/app/knowledge" icon={<BookOpen size={18} />} label="Knowledge Base" />
+              <NavItem to="/app/phone-numbers" icon={<Phone size={18} />} label="Phone Numbers" />
               <NavItem to="/app/calls" icon={<PhoneCall size={18} />} label="Call History" />
               <NavItem to="/app/analytics" icon={<BarChart3 size={18} />} label="Analytics" />
               <NavItem to="/app/settings" icon={<Settings size={18} />} label="Settings" />
