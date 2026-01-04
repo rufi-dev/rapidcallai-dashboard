@@ -417,6 +417,53 @@ export function PhoneNumbersPage() {
                 </div>
               </div>
             </Card>
+
+            <Card>
+              <div className="text-base font-semibold">SIP trunking (LiveKit)</div>
+              <div className="mt-2 text-sm text-slate-300">
+                Paste your LiveKit Cloud SIP trunk IDs here (Phase 3). Once set, we can route real PSTN calls through LiveKit.
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-xs text-slate-400">Inbound trunk ID</div>
+                  <div className="mt-2">
+                    <Input
+                      value={selected.livekitInboundTrunkId ?? ""}
+                      onChange={(v) =>
+                        setPhoneNumbers((prev) =>
+                          prev.map((p) => (p.id === selected.id ? { ...p, livekitInboundTrunkId: v } : p))
+                        )
+                      }
+                      placeholder="e.g. it_123..."
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <Button onClick={() => onSavePatch({ livekitInboundTrunkId: selected.livekitInboundTrunkId || null })}>
+                      Save inbound trunk
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Outbound trunk ID</div>
+                  <div className="mt-2">
+                    <Input
+                      value={selected.livekitOutboundTrunkId ?? ""}
+                      onChange={(v) =>
+                        setPhoneNumbers((prev) =>
+                          prev.map((p) => (p.id === selected.id ? { ...p, livekitOutboundTrunkId: v } : p))
+                        )
+                      }
+                      placeholder="e.g. ot_123..."
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <Button onClick={() => onSavePatch({ livekitOutboundTrunkId: selected.livekitOutboundTrunkId || null })}>
+                      Save outbound trunk
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
       </div>

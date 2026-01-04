@@ -117,6 +117,8 @@ export type PhoneNumber = {
   provider: "twilio";
   status: "unconfigured" | "ready" | "error";
   twilioNumberSid: string | null;
+  livekitInboundTrunkId: string | null;
+  livekitOutboundTrunkId: string | null;
   inboundAgentId: string | null;
   outboundAgentId: string | null;
   allowedInboundCountries: string[];
@@ -272,6 +274,8 @@ export async function updatePhoneNumber(
     label?: string;
     inboundAgentId?: string | null;
     outboundAgentId?: string | null;
+    livekitInboundTrunkId?: string | null;
+    livekitOutboundTrunkId?: string | null;
     allowedInboundCountries?: string[] | string;
     allowedOutboundCountries?: string[] | string;
   }
