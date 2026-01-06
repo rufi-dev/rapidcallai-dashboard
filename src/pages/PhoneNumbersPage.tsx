@@ -451,8 +451,8 @@ export function PhoneNumbersPage() {
             <Card>
               <div className="text-base font-semibold">SIP trunking (LiveKit)</div>
               <div className="mt-2 text-sm text-slate-300">
-                For Twilio inbound calls, LiveKit requires SIP auth credentials (username/password) from your LiveKit inbound trunk.
-                See LiveKit docs: Twilio Voice integration.
+                For Twilio inbound calls, SIP auth (username/password) is optional but recommended. Your call will still route via the inbound trunk
+                + dispatch rule if you leave these empty.
               </div>
               <div className="mt-2 text-xs text-slate-400">
                 Quick checklist:
