@@ -35,7 +35,6 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
   const mapRef = useRef<Map<string, TranscriptItem>>(new Map());
   const [tick, setTick] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const liveTurnRef = useRef<{ user: number; agent: number }>({ user: 0, agent: 0 });
 
   function isAgentIdentity(identity: string | undefined): boolean {
     if (!identity) return false;
@@ -63,25 +62,14 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
 
       const map = mapRef.current;
       for (const s of segments) {
-        // Keep a single "live" bubble updating while the speaker is mid-utterance.
-        // Some SDK/transcription backends emit many segment IDs while streaming; this avoids spammy lines.
-        const turnKey = role === "agent" ? "agent" : "user";
-        const liveId = `${turnKey}-live-${liveTurnRef.current[turnKey]}`;
-        const id = s.final ? s.id : liveId;
-
-        map.set(id, {
-          id,
+        map.set(s.id, {
+          id: s.id,
           speaker,
           text: s.text,
           final: s.final,
           firstReceivedTime: s.firstReceivedTime,
           role,
         });
-
-        if (s.final) {
-          // Advance the live bucket so the next utterance starts fresh.
-          liveTurnRef.current[turnKey] += 1;
-        }
       }
       const next = Array.from(map.values()).sort((a, b) => a.firstReceivedTime - b.firstReceivedTime);
       setItems(next);
@@ -172,12 +160,11 @@ function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
 
   useEffect(() => {
     function recompute() {
-      // In our Talk sessions there should be exactly one remote participant: the agent.
-      // Prefer official LiveKit Agents attribute, but fall back to "any remote participant" so
-      // the overlay never gets stuck when agent identity isn't prefixed with "agent-".
-      const hasAgent =
-        Array.from(room.remoteParticipants.values()).some((p) => typeof (p as any).attributes?.["lk.agent.state"] !== "undefined") ||
-        room.remoteParticipants.size > 0;
+      const hasAgent = Array.from(room.remoteParticipants.values()).some((p) => {
+        const attrs = (p as any).attributes ?? {};
+        if (typeof attrs["lk.agent.state"] !== "undefined") return true;
+        return String(p.identity || "").startsWith("agent-");
+      });
       setAgentReady(hasAgent);
       props.onReadyChange?.(hasAgent);
     }
