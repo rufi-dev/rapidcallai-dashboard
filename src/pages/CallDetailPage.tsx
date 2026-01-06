@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, Button } from "../components/ui";
-import { getCall, type CallRecord } from "../lib/api";
+import { getCall, getCallRecordingUrl, type CallRecord } from "../lib/api";
 
 function fmtTs(ms: number | null): string {
   if (!ms) return "—";
@@ -27,6 +27,8 @@ export function CallDetailPage() {
 
   const [call, setCall] = useState<CallRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -35,6 +37,29 @@ export function CallDetailPage() {
         const c = await getCall(callId);
         if (!mounted) return;
         setCall(c);
+
+        // Audio elements can't send Authorization headers; fetch a playback-ready URL.
+        if (c?.recording) {
+          try {
+            if ("kind" in c.recording && c.recording.kind === "egress_s3") {
+              setRecordingStatus(c.recording.status);
+              if (c.recording.status !== "ready") {
+                setPlaybackUrl(null);
+              } else {
+                const r = await getCallRecordingUrl(callId);
+                if (!mounted) return;
+                setPlaybackUrl(r.url);
+              }
+            } else if ("url" in c.recording && c.recording.url) {
+              const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
+              setPlaybackUrl(`${base}${c.recording.url}`);
+            }
+          } catch (e) {
+            setPlaybackUrl(null);
+          }
+        } else {
+          setPlaybackUrl(null);
+        }
       } catch (e) {
         toast.error(`Failed to load call: ${e instanceof Error ? e.message : "Unknown error"}`);
       } finally {
@@ -46,11 +71,7 @@ export function CallDetailPage() {
     };
   }, [callId]);
 
-  const recordingUrl = useMemo(() => {
-    if (!call?.recording || !("url" in call.recording)) return null;
-    const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
-    return `${base}${call.recording.url}`;
-  }, [call?.recording]);
+  const canShowRecording = useMemo(() => Boolean(call?.recording), [call?.recording]);
 
   return (
     <div className="space-y-6">
@@ -111,23 +132,25 @@ export function CallDetailPage() {
             <div>
               <div className="text-sm font-semibold">Recording</div>
               <div className="mt-2">
-                {call.recording && "kind" in call.recording && call.recording.kind === "egress_s3" ? (
-                  call.recording.status === "ready" && recordingUrl ? (
-                    <audio controls src={recordingUrl} className="w-full" />
-                  ) : (
-                    <div className="text-sm text-slate-300">
-                      Recording is <span className="text-slate-100">{call.recording.status}</span>…
-                      <div className="mt-2">
-                        <Button variant="secondary" onClick={() => window.location.reload()}>
-                          Refresh
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                ) : recordingUrl ? (
-                  <audio controls src={recordingUrl} className="w-full" />
-                ) : (
+                {!canShowRecording ? (
                   <div className="text-sm text-slate-300">No recording saved yet.</div>
+                ) : playbackUrl ? (
+                  <audio controls src={playbackUrl} className="w-full" />
+                ) : (
+                  <div className="text-sm text-slate-300">
+                    {recordingStatus ? (
+                      <>
+                        Recording is <span className="text-slate-100">{recordingStatus}</span>…
+                      </>
+                    ) : (
+                      <>Recording is not playable yet.</>
+                    )}
+                    <div className="mt-2">
+                      <Button variant="secondary" onClick={() => window.location.reload()}>
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

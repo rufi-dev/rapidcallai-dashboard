@@ -90,6 +90,12 @@ export type AnalyticsTotals = {
   totalTokens: number | null;
 };
 
+export type AnalyticsSeriesPoint = {
+  day: string; // YYYY-MM-DD (UTC)
+  calls: number;
+  minutes: number;
+};
+
 export type AgentAnalytics = {
   agentId: string;
   totals: AnalyticsTotals & { callCount: number; completedCallCount: number };
@@ -301,6 +307,22 @@ export async function getAnalytics(): Promise<{ totals: AnalyticsTotals }> {
   const res = await apiFetch(`/api/analytics`);
   if (!res.ok) throw new Error(`getAnalytics failed: ${await readError(res)}`);
   return (await res.json()) as { totals: AnalyticsTotals };
+}
+
+export async function getAnalyticsRange(input: {
+  from: number;
+  to: number;
+}): Promise<{ range: { from: number; to: number; tz: string }; totals: AnalyticsTotals; series: AnalyticsSeriesPoint[] }> {
+  const qs = new URLSearchParams({ from: String(input.from), to: String(input.to) });
+  const res = await apiFetch(`/api/analytics?${qs.toString()}`);
+  if (!res.ok) throw new Error(`getAnalyticsRange failed: ${await readError(res)}`);
+  return (await res.json()) as { range: { from: number; to: number; tz: string }; totals: AnalyticsTotals; series: AnalyticsSeriesPoint[] };
+}
+
+export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/recording-url`);
+  if (!res.ok) throw new Error(`getCallRecordingUrl failed: ${await readError(res)}`);
+  return (await res.json()) as { url: string };
 }
 
 export async function getAgentAnalytics(id: string): Promise<AgentAnalytics> {

@@ -2,18 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/ui";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { TrendingUp } from "lucide-react";
-import { getAnalytics } from "../lib/api";
+import { getAnalyticsRange, type AnalyticsSeriesPoint } from "../lib/api";
 import { toast } from "sonner";
 
-const data = [
-  { day: "Mon", calls: 12, minutes: 46 },
-  { day: "Tue", calls: 18, minutes: 71 },
-  { day: "Wed", calls: 14, minutes: 55 },
-  { day: "Thu", calls: 28, minutes: 103 },
-  { day: "Fri", calls: 22, minutes: 90 },
-  { day: "Sat", calls: 19, minutes: 66 },
-  { day: "Sun", calls: 26, minutes: 112 },
-];
+function toDateInputValue(ts: number): string {
+  const d = new Date(ts);
+  // YYYY-MM-DD in local time for the input control.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function fromDateInputValue(v: string): number | null {
+  if (!v) return null;
+  const t = Date.parse(`${v}T00:00:00`);
+  return Number.isFinite(t) ? t : null;
+}
 
 function Stat(props: { label: string; value: string; hint?: string }) {
   return (
@@ -34,15 +39,25 @@ function formatDuration(sec: number | null): string {
 
 export function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
-  const [totals, setTotals] = useState<null | Awaited<ReturnType<typeof getAnalytics>>["totals"]>(null);
+  const [totals, setTotals] = useState<null | Awaited<ReturnType<typeof getAnalyticsRange>>["totals"]>(null);
+  const [series, setSeries] = useState<AnalyticsSeriesPoint[]>([]);
+
+  const now = Date.now();
+  const [fromDay, setFromDay] = useState(() => toDateInputValue(now - 7 * 24 * 60 * 60 * 1000));
+  const [toDay, setToDay] = useState(() => toDateInputValue(now));
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const a = await getAnalytics();
+        const fromMs = fromDateInputValue(fromDay);
+        const toMs = fromDateInputValue(toDay);
+        if (fromMs == null || toMs == null) return;
+        // include full end-day
+        const a = await getAnalyticsRange({ from: fromMs, to: toMs + 24 * 60 * 60 * 1000 - 1 });
         if (!mounted) return;
         setTotals(a.totals);
+        setSeries(a.series || []);
       } catch (e) {
         toast.error(`Failed to load analytics: ${e instanceof Error ? e.message : "Unknown error"}`);
       } finally {
@@ -52,7 +67,7 @@ export function AnalyticsPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [fromDay, toDay]);
 
   const headerHint = useMemo(() => {
     if (loading) return "Loading…";
@@ -75,7 +90,36 @@ export function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <Card>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold">Filters</div>
+            <div className="text-xs text-slate-400">Date range</div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <label className="text-xs text-slate-300">
+              <span className="mr-2 text-slate-400">From</span>
+              <input
+                type="date"
+                value={fromDay}
+                onChange={(e) => setFromDay(e.target.value)}
+                className="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <label className="text-xs text-slate-300">
+              <span className="mr-2 text-slate-400">To</span>
+              <input
+                type="date"
+                value={toDay}
+                onChange={(e) => setToDay(e.target.value)}
+                className="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-4">
         <Stat label="Total calls" value={totals ? String(totals.callCount) : loading ? "…" : "—"} hint="All time" />
         <Stat
           label="Avg call duration"
@@ -86,6 +130,11 @@ export function AnalyticsPage() {
           label="Avg latency"
           value={totals?.avgLatencyMs != null ? `${totals.avgLatencyMs}ms` : loading ? "…" : "—"}
           hint="Avg turn latency (EOU + LLM TTFT)"
+        />
+        <Stat
+          label="Total cost"
+          value={typeof totals?.totalCostUsd === "number" ? `$${totals.totalCostUsd.toFixed(4)}` : loading ? "…" : "—"}
+          hint="Completed calls"
         />
       </div>
 
@@ -100,7 +149,7 @@ export function AnalyticsPage() {
 
         <div className="mt-5 h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <AreaChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="calls" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#00f06a" stopOpacity={0.35} />
