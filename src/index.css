@@ -42,6 +42,15 @@ body {
   background: rgba(0, 240, 106, 0.5);
 }
 
+/* Hide scrollbar UI while preserving scroll behavior (used in Talk transcript). */
+.scrollbar-hidden {
+  -ms-overflow-style: none; /* IE/Edge legacy */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* Custom select */
 .select-brand {
   appearance: none;

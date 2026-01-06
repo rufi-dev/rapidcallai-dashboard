@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ControlBar, LiveKitRoom, RoomAudioRenderer, useRoomContext } from "@livekit/components-react";
+import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { ClipboardCopy, CloudUpload, Save, Undo2, Wand2, X } from "lucide-react";
+import { ClipboardCopy, CloudUpload, Mic, MicOff, Save, Undo2, Wand2 } from "lucide-react";
 import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment } from "livekit-client";
 import { toast } from "sonner";
 
@@ -115,7 +115,7 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
 
       <div
         ref={scrollRef}
-        className="scrollbar-brand mt-4 flex-1 min-h-0 space-y-3 overflow-auto pr-1 rounded-2xl bg-slate-950/30 p-3"
+        className="scrollbar-hidden mt-4 flex-1 min-h-0 space-y-3 overflow-auto rounded-2xl bg-slate-950/30 p-3"
       >
         {items.length === 0 ? (
           <div className="rounded-2xl bg-slate-950/40 p-4 text-sm text-slate-300">
@@ -137,18 +137,6 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
             </div>
           ))
         )}
-      </div>
-
-      <div className="mt-3 flex justify-end shrink-0">
-        <Button
-          variant="secondary"
-          onClick={() => {
-            mapRef.current.clear();
-            setItems([]);
-          }}
-        >
-          Clear
-        </Button>
       </div>
     </div>
   );
@@ -216,6 +204,48 @@ function TalkLoadingOverlay(props: { show: boolean }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TalkControls(props: { onExit: () => void }) {
+  const room = useRoomContext();
+  const [micEnabled, setMicEnabled] = useState(true);
+
+  useEffect(() => {
+    const lp: any = room.localParticipant as any;
+    setMicEnabled(Boolean(lp?.isMicrophoneEnabled ?? true));
+  }, [room]);
+
+  async function toggleMic() {
+    const lp: any = room.localParticipant as any;
+    const current = Boolean(lp?.isMicrophoneEnabled ?? micEnabled);
+    try {
+      await room.localParticipant.setMicrophoneEnabled(!current);
+      setMicEnabled(!current);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to toggle microphone");
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <button
+        onClick={toggleMic}
+        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 hover:bg-white/10"
+        title={micEnabled ? "Mute microphone" : "Unmute microphone"}
+      >
+        {micEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+        {micEnabled ? "Mute" : "Unmute"}
+      </button>
+
+      <button
+        onClick={props.onExit}
+        className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/15"
+        title="Exit"
+      >
+        Exit
+      </button>
     </div>
   );
 }
@@ -576,19 +606,6 @@ export function AgentDetailPage() {
         <aside className="sticky top-[84px] h-[calc(100vh-120px)] overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5 flex flex-col">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">Talk</div>
-            <button
-              onClick={async () => {
-                await finalizeCall("closed");
-                setSession(null);
-                setPanelOpen(false);
-              }}
-              className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-white/10"
-              title="Close"
-            >
-              <span className="inline-flex items-center gap-2">
-                <X size={14} /> Close
-              </span>
-            </button>
           </div>
 
           <div className="mt-4 flex-1 min-h-0 overflow-hidden">
@@ -624,9 +641,14 @@ export function AgentDetailPage() {
                         }}
                       />
                     </div>
-                    {/* Controls moved to the bottom */}
                     <div className="mt-auto pt-1">
-                      <ControlBar variation="minimal" />
+                      <TalkControls
+                        onExit={async () => {
+                          await finalizeCall("ended");
+                          setSession(null);
+                          setPanelOpen(false);
+                        }}
+                      />
                     </div>
                   </div>
                   <TalkLoadingOverlay show={!agentReady} />
