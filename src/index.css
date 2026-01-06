@@ -52,3 +52,15 @@ body {
   background-repeat: no-repeat;
   padding-right: 2.25rem;
 }
+
+/* Date inputs: make the calendar icon visible on dark backgrounds */
+.date-input-brand {
+  color-scheme: dark;
+}
+.date-input-brand::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  opacity: 0.9;
+}
+.date-input-brand:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
