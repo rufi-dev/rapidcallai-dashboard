@@ -35,7 +35,6 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
   const mapRef = useRef<Map<string, TranscriptItem>>(new Map());
   const [tick, setTick] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const seenTextStreamRef = useRef(false);
 
   function isAgentIdentity(identity: string | undefined): boolean {
     if (!identity) return false;
@@ -54,10 +53,6 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
 
   useEffect(() => {
     function onTranscription(segments: TranscriptionSegment[], participant?: Participant, _pub?: TrackPublication) {
-      // If we’re receiving the official lk.transcription text stream, ignore this event source
-      // to prevent duplicate bubbles.
-      if (seenTextStreamRef.current) return;
-
       const identity = participant?.identity;
       const role = resolveRole(identity);
       const speaker =
@@ -95,110 +90,6 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
       room.off(RoomEvent.TranscriptionReceived, onTranscription);
     };
   }, [room]);
-
-  useEffect(() => {
-    // LiveKit Agents also emits transcriptions via text streams on topic "lk.transcription".
-    // This is what the official transcription examples use, and it enables fast interim updates.
-    const anyRoom = room as any;
-    if (typeof anyRoom.registerTextStreamHandler !== "function") return;
-
-    const topic = "lk.transcription";
-
-    const handler = async (reader: any, participant?: any) => {
-      // Once we successfully receive at least one stream, we’ll treat it as the canonical source.
-      seenTextStreamRef.current = true;
-
-      const info = reader?.info ?? reader;
-      const attrs: Record<string, string> = (info?.attributes ?? reader?.attributes ?? {}) as any;
-
-      const senderIdentityRaw =
-        participant?.identity ??
-        info?.senderIdentity ??
-        info?.sender_identity ??
-        info?.publisherIdentity ??
-        info?.participantIdentity ??
-        reader?.senderIdentity ??
-        reader?.participantIdentity ??
-        reader?.publisherIdentity ??
-        "unknown";
-      const senderIdentity = String(senderIdentityRaw || "unknown");
-
-      const role = resolveRole(senderIdentity);
-      const speaker =
-        role === "agent"
-          ? props.agentName || participant?.name || senderIdentity || "Agent"
-          : participant?.name || "Web User";
-
-      const segmentId = String(
-        attrs["lk.segment_id"] ||
-          attrs["lk.segmentId"] ||
-          attrs["lk.segmentID"] ||
-          `${senderIdentity}-${Date.now()}`
-      );
-
-      const map = mapRef.current;
-      let current = map.get(segmentId);
-      if (!current) {
-        current = {
-          id: segmentId,
-          speaker,
-          role,
-          text: "",
-          final: false,
-          firstReceivedTime: Date.now(),
-        };
-        map.set(segmentId, current);
-      }
-
-      try {
-        for await (const chunk of reader as AsyncIterable<any>) {
-          const text = typeof chunk === "string" ? chunk : String(chunk?.text ?? chunk?.data ?? "");
-          if (!text) continue;
-
-          // Agent streams are delta chunks; user streams are full transcript snapshots.
-          if (role === "agent") current.text += text;
-          else current.text = text;
-
-          const next = Array.from(map.values()).sort((a, b) => a.firstReceivedTime - b.firstReceivedTime);
-          setItems(next);
-          props.onTranscript?.(
-            next.map((it) => ({
-              speaker: it.speaker,
-              role: it.role,
-              text: it.text,
-              final: it.final,
-              firstReceivedTime: it.firstReceivedTime,
-            }))
-          );
-          setTick((t) => t + 1);
-        }
-
-        // If the stream finishes, treat it as a final segment.
-        current.final = true;
-        const next = Array.from(map.values()).sort((a, b) => a.firstReceivedTime - b.firstReceivedTime);
-        setItems(next);
-        props.onTranscript?.(
-          next.map((it) => ({
-            speaker: it.speaker,
-            role: it.role,
-            text: it.text,
-            final: it.final,
-            firstReceivedTime: it.firstReceivedTime,
-          }))
-        );
-        setTick((t) => t + 1);
-      } catch {
-        // Ignore handler errors; fallback transcription event listener may still work.
-      }
-    };
-
-    anyRoom.registerTextStreamHandler(topic, handler);
-    return () => {
-      if (typeof anyRoom.unregisterTextStreamHandler === "function") {
-        anyRoom.unregisterTextStreamHandler(topic);
-      }
-    };
-  }, [room, props.agentName]);
 
   useEffect(() => {
     // Always autoscroll on any transcription update (even if segments are updated in-place).
