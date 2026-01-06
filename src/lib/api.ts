@@ -1,3 +1,5 @@
+import { getToken, signOut } from "./auth";
+
 export type AgentProfile = {
   id: string;
   name: string;
@@ -104,9 +106,18 @@ export type AgentAnalytics = {
 export type Workspace = {
   id: string;
   name: string;
+  userId?: string | null;
   twilioSubaccountSid: string | null;
   createdAt: number;
   updatedAt: number;
+};
+
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  createdAt?: number;
+  updatedAt?: number;
 };
 
 export type PhoneNumber = {
@@ -148,15 +159,66 @@ async function readError(res: Response): Promise<string> {
   }
 }
 
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = getToken();
+  const headers = new Headers(init?.headers || undefined);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (res.status === 401) {
+    // Token is no longer valid on the server (expired/deleted) -> force re-login.
+    signOut();
+  }
+  return res;
+}
+
+export async function register(input: { name: string; email: string; password: string }): Promise<{
+  token: string;
+  user: User;
+  workspace: Workspace;
+}> {
+  const res = await apiFetch("/api/auth/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`register failed: ${await readError(res)}`);
+  return (await res.json()) as { token: string; user: User; workspace: Workspace };
+}
+
+export async function login(input: { email: string; password: string }): Promise<{
+  token: string;
+  user: User;
+  workspace: Workspace;
+}> {
+  const res = await apiFetch("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`login failed: ${await readError(res)}`);
+  return (await res.json()) as { token: string; user: User; workspace: Workspace };
+}
+
+export async function logout(): Promise<void> {
+  const res = await apiFetch("/api/auth/logout", { method: "POST" });
+  if (!res.ok) throw new Error(`logout failed: ${await readError(res)}`);
+}
+
+export async function getMe(): Promise<{ user: User; workspace: Workspace }> {
+  const res = await apiFetch("/api/me");
+  if (!res.ok) throw new Error(`getMe failed: ${await readError(res)}`);
+  return (await res.json()) as { user: User; workspace: Workspace };
+}
+
 export async function listAgents(): Promise<AgentProfile[]> {
-  const res = await fetch(`${API_BASE}/api/agents`);
+  const res = await apiFetch(`/api/agents`);
   if (!res.ok) throw new Error(`listAgents failed: ${await readError(res)}`);
   const data = (await res.json()) as { agents: AgentProfile[] };
   return data.agents;
 }
 
 export async function createAgent(input: { name: string; prompt: string }): Promise<AgentProfile> {
-  const res = await fetch(`${API_BASE}/api/agents`, {
+  const res = await apiFetch(`/api/agents`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -167,7 +229,7 @@ export async function createAgent(input: { name: string; prompt: string }): Prom
 }
 
 export async function getAgent(id: string): Promise<AgentProfile> {
-  const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(id)}`);
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`);
   if (!res.ok) throw new Error(`getAgent failed: ${await readError(res)}`);
   const data = (await res.json()) as { agent: AgentProfile };
   return data.agent;
@@ -177,7 +239,7 @@ export async function updateAgent(
   id: string,
   input: { name?: string; promptDraft?: string; publish?: boolean; welcome?: AgentProfile["welcome"] }
 ): Promise<AgentProfile> {
-  const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -188,7 +250,7 @@ export async function updateAgent(
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`deleteAgent failed: ${await readError(res)}`);
 }
 
@@ -196,7 +258,7 @@ export async function startAgent(
   id: string,
   input?: { welcome?: AgentProfile["welcome"] }
 ): Promise<StartResponse> {
-  const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(id)}/start`, {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/start`, {
     method: "POST",
     headers: input ? { "content-type": "application/json" } : undefined,
     body: input ? JSON.stringify(input) : undefined,
@@ -206,14 +268,14 @@ export async function startAgent(
 }
 
 export async function listCalls(): Promise<CallSummary[]> {
-  const res = await fetch(`${API_BASE}/api/calls`);
+  const res = await apiFetch(`/api/calls`);
   if (!res.ok) throw new Error(`listCalls failed: ${await readError(res)}`);
   const data = (await res.json()) as { calls: CallSummary[] };
   return data.calls;
 }
 
 export async function getCall(id: string): Promise<CallRecord> {
-  const res = await fetch(`${API_BASE}/api/calls/${encodeURIComponent(id)}`);
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}`);
   if (!res.ok) throw new Error(`getCall failed: ${await readError(res)}`);
   const data = (await res.json()) as { call: CallRecord };
   return data.call;
@@ -223,7 +285,7 @@ export async function endCall(
   id: string,
   input: { outcome?: string; costUsd?: number; transcript?: CallTranscriptItem[] }
 ): Promise<CallRecord> {
-  const res = await fetch(`${API_BASE}/api/calls/${encodeURIComponent(id)}/end`, {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/end`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -234,31 +296,30 @@ export async function endCall(
 }
 
 export async function getAnalytics(): Promise<{ totals: AnalyticsTotals }> {
-  const res = await fetch(`${API_BASE}/api/analytics`);
+  const res = await apiFetch(`/api/analytics`);
   if (!res.ok) throw new Error(`getAnalytics failed: ${await readError(res)}`);
   return (await res.json()) as { totals: AnalyticsTotals };
 }
 
 export async function getAgentAnalytics(id: string): Promise<AgentAnalytics> {
-  const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(id)}/analytics`);
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/analytics`);
   if (!res.ok) throw new Error(`getAgentAnalytics failed: ${await readError(res)}`);
   return (await res.json()) as AgentAnalytics;
 }
 
 export async function listPhoneNumbers(workspaceId?: string): Promise<PhoneNumber[]> {
-  const qs = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
-  const res = await fetch(`${API_BASE}/api/phone-numbers${qs}`);
+  // server now scopes by auth; workspaceId is ignored (kept for backward compat).
+  const res = await apiFetch(`/api/phone-numbers`);
   if (!res.ok) throw new Error(`listPhoneNumbers failed: ${await readError(res)}`);
   const data = (await res.json()) as { phoneNumbers: PhoneNumber[] };
   return data.phoneNumbers;
 }
 
 export async function createPhoneNumber(input: {
-  workspaceId?: string;
   e164: string;
   label?: string;
 }): Promise<PhoneNumber> {
-  const res = await fetch(`${API_BASE}/api/phone-numbers`, {
+  const res = await apiFetch(`/api/phone-numbers`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -280,7 +341,7 @@ export async function updatePhoneNumber(
     allowedOutboundCountries?: string[] | string;
   }
 ): Promise<PhoneNumber> {
-  const res = await fetch(`${API_BASE}/api/phone-numbers/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/phone-numbers/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -291,12 +352,12 @@ export async function updatePhoneNumber(
 }
 
 export async function deletePhoneNumber(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/phone-numbers/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const res = await apiFetch(`/api/phone-numbers/${encodeURIComponent(id)}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`deletePhoneNumber failed: ${await readError(res)}`);
 }
 
 export async function ensureTwilioSubaccount(workspaceId: string): Promise<Workspace> {
-  const res = await fetch(`${API_BASE}/api/workspaces/${encodeURIComponent(workspaceId)}/twilio/subaccount`, {
+  const res = await apiFetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/twilio/subaccount`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({}),
@@ -318,8 +379,8 @@ export async function searchTwilioNumbers(input: {
   qs.set("type", input.type);
   if (input.contains) qs.set("contains", input.contains);
   if (input.limit) qs.set("limit", String(input.limit));
-  const res = await fetch(
-    `${API_BASE}/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/available-numbers?${qs.toString()}`
+  const res = await apiFetch(
+    `/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/available-numbers?${qs.toString()}`
   );
   if (!res.ok) throw new Error(`searchTwilioNumbers failed: ${await readError(res)}`);
   const data = (await res.json()) as { numbers: TwilioAvailableNumber[] };
@@ -331,7 +392,7 @@ export async function buyTwilioNumber(input: {
   phoneNumber: string;
   label?: string;
 }): Promise<{ phoneNumber: PhoneNumber }> {
-  const res = await fetch(`${API_BASE}/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/buy-number`, {
+  const res = await apiFetch(`/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/buy-number`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ phoneNumber: input.phoneNumber, label: input.label }),

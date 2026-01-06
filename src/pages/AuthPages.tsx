@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
-import { signIn } from "../lib/auth";
+import { setToken } from "../lib/auth";
+import { login, register } from "../lib/api";
 
 function Field(props: {
   label: string;
@@ -28,6 +29,7 @@ export function LoginPage() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const can = useMemo(() => email.trim() && password.trim(), [email, password]);
 
   return (
@@ -65,14 +67,21 @@ export function LoginPage() {
             <Field label="Password" value={password} onChange={setPassword} type="password" placeholder="••••••••" />
             <button
               disabled={!can}
-              onClick={() => {
-                signIn(email.trim(), password);
-                nav("/app/agents");
+              onClick={async () => {
+                try {
+                  setErr(null);
+                  const out = await login({ email: email.trim(), password });
+                  setToken(out.token);
+                  nav("/app/agents");
+                } catch (e) {
+                  setErr(e instanceof Error ? e.message : "Login failed");
+                }
               }}
               className="mt-2 w-full rounded-2xl bg-brand-500/20 px-4 py-3 text-sm font-semibold text-brand-200 shadow-glow transition hover:bg-brand-500/25 disabled:opacity-50"
             >
               Login
             </button>
+            {err ? <div className="text-sm text-red-300">{err}</div> : null}
           </div>
 
           <div className="mt-5 text-sm text-slate-300">
@@ -93,6 +102,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const can = useMemo(() => email.trim() && password.trim() && name.trim(), [email, password, name]);
 
   return (
@@ -102,7 +112,7 @@ export function RegisterPage() {
           <Sparkles size={16} /> Create account
         </div>
         <div className="mt-4 text-2xl font-semibold tracking-tight">Let’s get you set up</div>
-        <div className="mt-1 text-sm text-slate-300">This demo uses local-only auth (no backend yet).</div>
+        <div className="mt-1 text-sm text-slate-300">Create an account to get a private workspace.</div>
 
         <div className="mt-6 space-y-3">
           <Field label="Name" value={name} onChange={setName} placeholder="Rufia" />
@@ -110,14 +120,21 @@ export function RegisterPage() {
           <Field label="Password" value={password} onChange={setPassword} type="password" placeholder="••••••••" />
           <button
             disabled={!can}
-            onClick={() => {
-              signIn(email.trim(), password);
-              nav("/app/agents", { state: { from: location.pathname } });
+            onClick={async () => {
+              try {
+                setErr(null);
+                const out = await register({ name: name.trim(), email: email.trim(), password });
+                setToken(out.token);
+                nav("/app/agents", { state: { from: location.pathname } });
+              } catch (e) {
+                setErr(e instanceof Error ? e.message : "Register failed");
+              }
             }}
             className="mt-2 w-full rounded-2xl bg-brand-500/20 px-4 py-3 text-sm font-semibold text-brand-200 shadow-glow transition hover:bg-brand-500/25 disabled:opacity-50"
           >
             Create & continue
           </button>
+          {err ? <div className="text-sm text-red-300">{err}</div> : null}
         </div>
 
         <div className="mt-5 text-sm text-slate-300">

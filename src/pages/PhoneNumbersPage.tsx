@@ -6,6 +6,7 @@ import {
   createPhoneNumber,
   deletePhoneNumber,
   ensureTwilioSubaccount,
+  getMe,
   listAgents,
   listPhoneNumbers,
   searchTwilioNumbers,
@@ -38,7 +39,7 @@ function Select(props: {
 }
 
 export function PhoneNumbersPage() {
-  const workspaceId = "rapidcallai";
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [agents, setAgents] = useState<AgentProfile[]>([]);
@@ -91,9 +92,26 @@ export function PhoneNumbersPage() {
   }
 
   useEffect(() => {
-    void refresh();
+    let mounted = true;
+    getMe()
+      .then((m) => {
+        if (!mounted) return;
+        setWorkspaceId(m.workspace.id);
+      })
+      .catch(() => {
+        // ignore; RequireAuth handles redirects
+      });
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
 
   const agentOptions = useMemo(() => {
     return [
@@ -122,6 +140,10 @@ export function PhoneNumbersPage() {
   }
 
   async function onOpenBuy() {
+    if (!workspaceId) {
+      toast.error("Workspace not loaded yet");
+      return;
+    }
     try {
       await ensureTwilioSubaccount(workspaceId);
       setBuyResults([]);
@@ -132,6 +154,10 @@ export function PhoneNumbersPage() {
   }
 
   async function onSearchBuy() {
+    if (!workspaceId) {
+      toast.error("Workspace not loaded yet");
+      return;
+    }
     setBuyLoading(true);
     try {
       await ensureTwilioSubaccount(workspaceId);
@@ -152,6 +178,10 @@ export function PhoneNumbersPage() {
   }
 
   async function onPurchase(n: TwilioAvailableNumber) {
+    if (!workspaceId) {
+      toast.error("Workspace not loaded yet");
+      return;
+    }
     setBuyLoading(true);
     try {
       const resp = await buyTwilioNumber({

@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   BookOpen,
@@ -9,6 +10,7 @@ import {
   Settings,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
+import { getMe, logout } from "../lib/api";
 import { HeaderSlotProvider, useHeaderSlots } from "./headerSlots";
 
 function NavItem(props: { to: string; icon: React.ReactNode; label: string }) {
@@ -32,6 +34,22 @@ function NavItem(props: { to: string; icon: React.ReactNode; label: string }) {
 
 function ShellHeader(props: { isAgentDetail: boolean }) {
   const { header } = useHeaderSlots();
+  const [workspaceName, setWorkspaceName] = useState<string>("Workspace");
+  useEffect(() => {
+    let mounted = true;
+    getMe()
+      .then((m) => {
+        if (!mounted) return;
+        setWorkspaceName(m.workspace?.name || "Workspace");
+      })
+      .catch(() => {
+        // ignore; RequireAuth handles redirects
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   if (props.isAgentDetail) {
     return (
       <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-950/40 backdrop-blur-xl">
@@ -48,7 +66,7 @@ function ShellHeader(props: { isAgentDetail: boolean }) {
       <div className="flex items-center justify-between gap-4 px-6 py-4">
         <div>
           <div className="text-xs text-slate-400">Workspace</div>
-          <div className="text-lg font-semibold tracking-tight">rapidcallai</div>
+          <div className="text-lg font-semibold tracking-tight">{workspaceName}</div>
         </div>
         <div className="flex items-center gap-2">{header.right}</div>
       </div>
@@ -60,6 +78,22 @@ export function AppShell() {
   const nav = useNavigate();
   const location = useLocation();
   const isAgentDetail = /^\/app\/agents\/[^/]+/.test(location.pathname);
+  const [workspaceName, setWorkspaceName] = useState<string>("Workspace");
+
+  useEffect(() => {
+    let mounted = true;
+    getMe()
+      .then((m) => {
+        if (!mounted) return;
+        setWorkspaceName(m.workspace?.name || "Workspace");
+      })
+      .catch(() => {
+        // ignore; RequireAuth handles redirects
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <HeaderSlotProvider>
@@ -69,7 +103,7 @@ export function AppShell() {
           <aside className="fixed inset-y-0 left-0 hidden w-[280px] border-r border-white/10 bg-slate-950/40 p-4 backdrop-blur-xl lg:block">
             <div className="px-2">
               <div className="text-xs text-slate-400">Workspace</div>
-              <div className="text-base font-semibold tracking-tight text-white">rapidcallai</div>
+              <div className="text-base font-semibold tracking-tight text-white">{workspaceName}</div>
               <div className="mt-1 text-xs text-slate-500">Voice Studio</div>
             </div>
 
@@ -84,9 +118,15 @@ export function AppShell() {
 
             <div className="mt-6 border-t border-white/10 pt-4">
               <button
-                onClick={() => {
-                  signOut();
-                  nav("/login");
+                onClick={async () => {
+                  try {
+                    await logout();
+                  } catch {
+                    // ignore
+                  } finally {
+                    signOut();
+                    nav("/login");
+                  }
                 }}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white"
               >
