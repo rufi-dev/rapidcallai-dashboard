@@ -307,7 +307,7 @@ export async function getAgentAnalytics(id: string): Promise<AgentAnalytics> {
   return (await res.json()) as AgentAnalytics;
 }
 
-export async function listPhoneNumbers(workspaceId?: string): Promise<PhoneNumber[]> {
+export async function listPhoneNumbers(_workspaceId?: string): Promise<PhoneNumber[]> {
   // server now scopes by auth; workspaceId is ignored (kept for backward compat).
   const res = await apiFetch(`/api/phone-numbers`);
   if (!res.ok) throw new Error(`listPhoneNumbers failed: ${await readError(res)}`);
