@@ -451,8 +451,61 @@ export function PhoneNumbersPage() {
             <Card>
               <div className="text-base font-semibold">SIP trunking (LiveKit)</div>
               <div className="mt-2 text-sm text-slate-300">
-                Paste your LiveKit Cloud SIP trunk IDs here (Phase 3). Once set, we can route real PSTN calls through LiveKit.
+                For Twilio inbound calls, LiveKit requires SIP auth credentials (username/password) from your LiveKit inbound trunk.
+                See LiveKit docs: Twilio Voice integration.
               </div>
+              <div className="mt-2 text-xs text-slate-400">
+                Quick checklist:
+                <span className="ml-2 font-mono">
+                  1) LiveKit: create Inbound Trunk (set auth username/password) · 2) LiveKit: create Dispatch Rule (callee or individual) · 3)
+                  Twilio number Voice webhook: POST to <span className="text-slate-200">/api/twilio/inbound</span> · 4) Set API env{" "}
+                  <span className="text-slate-200">LIVEKIT_SIP_ENDPOINT</span> to your LiveKit SIP endpoint (e.g.{" "}
+                  <span className="text-slate-200">vjnxecm0tjk.sip.livekit.cloud</span>)
+                </span>
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-xs text-slate-400">LiveKit SIP username</div>
+                  <div className="mt-2">
+                    <Input
+                      value={selected.livekitSipUsername ?? ""}
+                      onChange={(v) =>
+                        setPhoneNumbers((prev) =>
+                          prev.map((p) => (p.id === selected.id ? { ...p, livekitSipUsername: v } : p))
+                        )
+                      }
+                      placeholder="e.g. my_sip_user"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">LiveKit SIP password</div>
+                  <div className="mt-2">
+                    <Input
+                      value={selected.livekitSipPassword ?? ""}
+                      onChange={(v) =>
+                        setPhoneNumbers((prev) =>
+                          prev.map((p) => (p.id === selected.id ? { ...p, livekitSipPassword: v } : p))
+                        )
+                      }
+                      placeholder="e.g. my_sip_pass"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Button
+                  onClick={() =>
+                    onSavePatch({
+                      livekitSipUsername: selected.livekitSipUsername ? selected.livekitSipUsername : null,
+                      livekitSipPassword: selected.livekitSipPassword ? selected.livekitSipPassword : null,
+                    })
+                  }
+                >
+                  Save SIP credentials
+                </Button>
+              </div>
+
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div>
                   <div className="text-xs text-slate-400">Inbound trunk ID</div>

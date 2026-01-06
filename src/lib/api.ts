@@ -130,6 +130,8 @@ export type PhoneNumber = {
   twilioNumberSid: string | null;
   livekitInboundTrunkId: string | null;
   livekitOutboundTrunkId: string | null;
+  livekitSipUsername?: string | null;
+  livekitSipPassword?: string | null;
   inboundAgentId: string | null;
   outboundAgentId: string | null;
   allowedInboundCountries: string[];
@@ -337,6 +339,8 @@ export async function updatePhoneNumber(
     outboundAgentId?: string | null;
     livekitInboundTrunkId?: string | null;
     livekitOutboundTrunkId?: string | null;
+    livekitSipUsername?: string | null;
+    livekitSipPassword?: string | null;
     allowedInboundCountries?: string[] | string;
     allowedOutboundCountries?: string[] | string;
   }
