@@ -178,9 +178,11 @@ function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
     recompute();
     room.on(RoomEvent.ParticipantConnected, recompute);
     room.on(RoomEvent.ParticipantDisconnected, recompute);
+    room.on(RoomEvent.TranscriptionReceived, recompute);
     return () => {
       room.off(RoomEvent.ParticipantConnected, recompute);
       room.off(RoomEvent.ParticipantDisconnected, recompute);
+      room.off(RoomEvent.TranscriptionReceived, recompute);
     };
   }, [room]);
 
@@ -191,8 +193,29 @@ function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
         agentReady ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-white/10 bg-white/5 text-slate-200",
       ].join(" ")}
     >
-      <span className={agentReady ? "h-2 w-2 rounded-full bg-emerald-400" : "h-2 w-2 rounded-full bg-slate-400"} />
-      {agentReady ? "Agent connected" : "Starting agent…"}
+      {agentReady ? (
+        <span className="h-2 w-2 rounded-full bg-emerald-400" />
+      ) : (
+        <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-brand-300" />
+      )}
+      {agentReady ? "Connected" : "Connecting…"}
+    </div>
+  );
+}
+
+function TalkLoadingOverlay(props: { show: boolean }) {
+  if (!props.show) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <div className="rounded-3xl border border-white/10 bg-slate-950/60 px-5 py-4 text-sm text-slate-200 shadow-xl backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-brand-300" />
+          <div>
+            <div className="font-medium text-slate-100">Connecting…</div>
+            <div className="mt-0.5 text-xs text-slate-300">This can take a few seconds</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -606,13 +629,7 @@ export function AgentDetailPage() {
                       <ControlBar variation="minimal" />
                     </div>
                   </div>
-                  {!agentReady ? (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="rounded-3xl border border-white/10 bg-slate-950/60 px-5 py-4 text-sm text-slate-200 shadow-xl">
-                        Starting agent…
-                      </div>
-                    </div>
-                  ) : null}
+                  <TalkLoadingOverlay show={!agentReady} />
                 </LiveKitRoom>
               </div>
             )}
