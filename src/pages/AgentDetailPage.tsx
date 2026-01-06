@@ -76,6 +76,76 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
   }, [room]);
 
   useEffect(() => {
+    // LiveKit Agents also emits transcriptions via text streams on topic "lk.transcription".
+    // This is what the official transcription examples use, and it enables fast interim updates.
+    const anyRoom = room as any;
+    if (typeof anyRoom.registerTextStreamHandler !== "function") return;
+
+    const topic = "lk.transcription";
+
+    const handler = async (reader: any) => {
+      const info = reader?.info ?? reader;
+      const attrs: Record<string, string> = (info?.attributes ?? reader?.attributes ?? {}) as any;
+      const senderIdentity: string =
+        String(info?.senderIdentity ?? info?.sender_identity ?? info?.sender ?? reader?.senderIdentity ?? "unknown");
+
+      const role: "agent" | "user" = senderIdentity.startsWith("agent-") ? "agent" : "user";
+      const speaker = role === "agent" ? props.agentName || "Agent" : senderIdentity || "User";
+
+      const segmentId = String(attrs["lk.segment_id"] || attrs["lk.segmentId"] || `${senderIdentity}-${Date.now()}`);
+      const isFinalAttr = String(attrs["lk.transcription_final"] || "").toLowerCase() === "true";
+
+      const map = mapRef.current;
+      let current = map.get(segmentId);
+      if (!current) {
+        current = {
+          id: segmentId,
+          speaker,
+          role,
+          text: "",
+          final: false,
+          firstReceivedTime: Date.now(),
+        };
+        map.set(segmentId, current);
+      }
+
+      try {
+        for await (const chunk of reader as AsyncIterable<any>) {
+          const text = typeof chunk === "string" ? chunk : String(chunk?.text ?? chunk?.data ?? "");
+          if (!text) continue;
+
+          // Agent streams are delta chunks; user streams are full transcript snapshots.
+          if (role === "agent") current.text += text;
+          else current.text = text;
+
+          current.final = isFinalAttr;
+          const next = Array.from(map.values()).sort((a, b) => a.firstReceivedTime - b.firstReceivedTime);
+          setItems(next);
+          props.onTranscript?.(
+            next.map((it) => ({
+              speaker: it.speaker,
+              role: it.role,
+              text: it.text,
+              final: it.final,
+              firstReceivedTime: it.firstReceivedTime,
+            }))
+          );
+          setTick((t) => t + 1);
+        }
+      } catch {
+        // Ignore handler errors; fallback transcription event listener may still work.
+      }
+    };
+
+    anyRoom.registerTextStreamHandler(topic, handler);
+    return () => {
+      if (typeof anyRoom.unregisterTextStreamHandler === "function") {
+        anyRoom.unregisterTextStreamHandler(topic);
+      }
+    };
+  }, [room, props.agentName]);
+
+  useEffect(() => {
     // Always autoscroll on any transcription update (even if segments are updated in-place).
     const el = scrollRef.current;
     if (!el) return;
