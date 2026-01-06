@@ -35,15 +35,36 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
   const mapRef = useRef<Map<string, TranscriptItem>>(new Map());
   const [tick, setTick] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const seenTextStreamRef = useRef(false);
+
+  function isAgentIdentity(identity: string | undefined): boolean {
+    if (!identity) return false;
+    // Prefer the official participant attribute set by LiveKit Agents.
+    const p = room.remoteParticipants.get(identity);
+    if (p && typeof (p as any).attributes?.["lk.agent.state"] !== "undefined") return true;
+    // Fallback to previous heuristic.
+    return identity.startsWith("agent-");
+  }
+
+  function resolveRole(identity: string | undefined): "agent" | "user" {
+    const localId = room.localParticipant?.identity;
+    if (identity && localId && identity === localId) return "user";
+    return isAgentIdentity(identity) ? "agent" : "user";
+  }
 
   useEffect(() => {
     function onTranscription(segments: TranscriptionSegment[], participant?: Participant, _pub?: TrackPublication) {
+      // If we’re receiving the official lk.transcription text stream, ignore this event source
+      // to prevent duplicate bubbles.
+      if (seenTextStreamRef.current) return;
+
       const identity = participant?.identity;
+      const role = resolveRole(identity);
       const speaker =
-        participant?.name ||
-        (identity && identity.startsWith("agent-") ? props.agentName || "Agent" : identity) ||
-        "Unknown";
-      const role: "agent" | "user" = identity && identity.startsWith("agent-") ? "agent" : "user";
+        role === "agent"
+          ? props.agentName || participant?.name || identity || "Agent"
+          : participant?.name || "Web User";
+
       const map = mapRef.current;
       for (const s of segments) {
         map.set(s.id, {
@@ -83,17 +104,37 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
 
     const topic = "lk.transcription";
 
-    const handler = async (reader: any) => {
+    const handler = async (reader: any, participant?: any) => {
+      // Once we successfully receive at least one stream, we’ll treat it as the canonical source.
+      seenTextStreamRef.current = true;
+
       const info = reader?.info ?? reader;
       const attrs: Record<string, string> = (info?.attributes ?? reader?.attributes ?? {}) as any;
-      const senderIdentity: string =
-        String(info?.senderIdentity ?? info?.sender_identity ?? info?.sender ?? reader?.senderIdentity ?? "unknown");
 
-      const role: "agent" | "user" = senderIdentity.startsWith("agent-") ? "agent" : "user";
-      const speaker = role === "agent" ? props.agentName || "Agent" : senderIdentity || "User";
+      const senderIdentityRaw =
+        participant?.identity ??
+        info?.senderIdentity ??
+        info?.sender_identity ??
+        info?.publisherIdentity ??
+        info?.participantIdentity ??
+        reader?.senderIdentity ??
+        reader?.participantIdentity ??
+        reader?.publisherIdentity ??
+        "unknown";
+      const senderIdentity = String(senderIdentityRaw || "unknown");
 
-      const segmentId = String(attrs["lk.segment_id"] || attrs["lk.segmentId"] || `${senderIdentity}-${Date.now()}`);
-      const isFinalAttr = String(attrs["lk.transcription_final"] || "").toLowerCase() === "true";
+      const role = resolveRole(senderIdentity);
+      const speaker =
+        role === "agent"
+          ? props.agentName || participant?.name || senderIdentity || "Agent"
+          : participant?.name || "Web User";
+
+      const segmentId = String(
+        attrs["lk.segment_id"] ||
+          attrs["lk.segmentId"] ||
+          attrs["lk.segmentID"] ||
+          `${senderIdentity}-${Date.now()}`
+      );
 
       const map = mapRef.current;
       let current = map.get(segmentId);
@@ -118,7 +159,6 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
           if (role === "agent") current.text += text;
           else current.text = text;
 
-          current.final = isFinalAttr;
           const next = Array.from(map.values()).sort((a, b) => a.firstReceivedTime - b.firstReceivedTime);
           setItems(next);
           props.onTranscript?.(
@@ -132,6 +172,21 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
           );
           setTick((t) => t + 1);
         }
+
+        // If the stream finishes, treat it as a final segment.
+        current.final = true;
+        const next = Array.from(map.values()).sort((a, b) => a.firstReceivedTime - b.firstReceivedTime);
+        setItems(next);
+        props.onTranscript?.(
+          next.map((it) => ({
+            speaker: it.speaker,
+            role: it.role,
+            text: it.text,
+            final: it.final,
+            firstReceivedTime: it.firstReceivedTime,
+          }))
+        );
+        setTick((t) => t + 1);
       } catch {
         // Ignore handler errors; fallback transcription event listener may still work.
       }
@@ -214,7 +269,11 @@ function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
 
   useEffect(() => {
     function recompute() {
-      const hasAgent = Array.from(room.remoteParticipants.values()).some((p) => String(p.identity || "").startsWith("agent-"));
+      const hasAgent = Array.from(room.remoteParticipants.values()).some((p) => {
+        const attrs = (p as any).attributes ?? {};
+        if (typeof attrs["lk.agent.state"] !== "undefined") return true;
+        return String(p.identity || "").startsWith("agent-");
+      });
       setAgentReady(hasAgent);
       props.onReadyChange?.(hasAgent);
     }
