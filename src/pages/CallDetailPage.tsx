@@ -29,6 +29,41 @@ export function CallDetailPage() {
   const [loading, setLoading] = useState(true);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+
+  async function refreshRecording(c: CallRecord | null) {
+    if (!c?.recording) {
+      setPlaybackUrl(null);
+      setRecordingStatus(null);
+      setRecordingError(null);
+      return;
+    }
+
+    setRecordingError(null);
+
+    // Audio elements can't send Authorization headers; fetch a playback-ready URL.
+    try {
+      if ("kind" in c.recording && c.recording.kind === "egress_s3") {
+        setRecordingStatus(c.recording.status);
+        if (c.recording.status !== "ready") {
+          setPlaybackUrl(null);
+          return;
+        }
+        const r = await getCallRecordingUrl(callId);
+        setPlaybackUrl(r.url);
+        return;
+      }
+
+      if ("url" in c.recording && c.recording.url) {
+        const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
+        setPlaybackUrl(`${base}${c.recording.url}`);
+        return;
+      }
+    } catch (e) {
+      setPlaybackUrl(null);
+      setRecordingError(e instanceof Error ? e.message : "Failed to load recording");
+    }
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -37,29 +72,7 @@ export function CallDetailPage() {
         const c = await getCall(callId);
         if (!mounted) return;
         setCall(c);
-
-        // Audio elements can't send Authorization headers; fetch a playback-ready URL.
-        if (c?.recording) {
-          try {
-            if ("kind" in c.recording && c.recording.kind === "egress_s3") {
-              setRecordingStatus(c.recording.status);
-              if (c.recording.status !== "ready") {
-                setPlaybackUrl(null);
-              } else {
-                const r = await getCallRecordingUrl(callId);
-                if (!mounted) return;
-                setPlaybackUrl(r.url);
-              }
-            } else if ("url" in c.recording && c.recording.url) {
-              const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
-              setPlaybackUrl(`${base}${c.recording.url}`);
-            }
-          } catch (e) {
-            setPlaybackUrl(null);
-          }
-        } else {
-          setPlaybackUrl(null);
-        }
+        await refreshRecording(c);
       } catch (e) {
         toast.error(`Failed to load call: ${e instanceof Error ? e.message : "Unknown error"}`);
       } finally {
@@ -145,9 +158,23 @@ export function CallDetailPage() {
                     ) : (
                       <>Recording is not playable yet.</>
                     )}
+                    {recordingError ? (
+                      <div className="mt-2 text-xs text-rose-200">{recordingError}</div>
+                    ) : null}
                     <div className="mt-2">
-                      <Button variant="secondary" onClick={() => window.location.reload()}>
-                        Refresh
+                      <Button
+                        variant="secondary"
+                        onClick={async () => {
+                          try {
+                            const c = await getCall(callId);
+                            setCall(c);
+                            await refreshRecording(c);
+                          } catch (e) {
+                            toast.error(`Failed to refresh call: ${e instanceof Error ? e.message : "Unknown error"}`);
+                          }
+                        }}
+                      >
+                        Retry
                       </Button>
                     </div>
                   </div>
