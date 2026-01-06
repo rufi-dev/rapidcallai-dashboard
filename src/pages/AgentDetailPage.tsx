@@ -138,6 +138,39 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
   );
 }
 
+function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
+  const room = useRoomContext();
+  const [agentReady, setAgentReady] = useState(false);
+
+  useEffect(() => {
+    function recompute() {
+      const hasAgent = Array.from(room.remoteParticipants.values()).some((p) => String(p.identity || "").startsWith("agent-"));
+      setAgentReady(hasAgent);
+      props.onReadyChange?.(hasAgent);
+    }
+
+    recompute();
+    room.on(RoomEvent.ParticipantConnected, recompute);
+    room.on(RoomEvent.ParticipantDisconnected, recompute);
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, recompute);
+      room.off(RoomEvent.ParticipantDisconnected, recompute);
+    };
+  }, [room]);
+
+  return (
+    <div
+      className={[
+        "inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs",
+        agentReady ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-white/10 bg-white/5 text-slate-200",
+      ].join(" ")}
+    >
+      <span className={agentReady ? "h-2 w-2 rounded-full bg-emerald-400" : "h-2 w-2 rounded-full bg-slate-400"} />
+      {agentReady ? "Agent connected" : "Starting agent…"}
+    </div>
+  );
+}
+
 export function AgentDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -161,6 +194,7 @@ export function AgentDetailPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [session, setSession] = useState<StartResponse | null>(null);
   const [starting, setStarting] = useState(false);
+  const [agentReady, setAgentReady] = useState(false);
   const transcriptRef = useRef<CallTranscriptItem[]>([]);
   const endInFlightRef = useRef(false);
 
@@ -271,6 +305,7 @@ export function AgentDetailPage() {
         },
       });
       setSession(s);
+      setAgentReady(false);
       transcriptRef.current = [];
       setPanelOpen(true);
       toast.success("Session started");
@@ -528,6 +563,10 @@ export function AgentDetailPage() {
                 >
                   <RoomAudioRenderer />
                   <div className="flex h-full min-h-0 flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <RoomStatusPill onReadyChange={(ready) => setAgentReady(ready)} />
+                      {!agentReady ? <div className="text-xs text-slate-400">Connecting may take a few seconds…</div> : null}
+                    </div>
                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                       <TranscriptPanel
                         agentName={agent?.name}
@@ -541,6 +580,13 @@ export function AgentDetailPage() {
                       <ControlBar variation="minimal" />
                     </div>
                   </div>
+                  {!agentReady ? (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="rounded-3xl border border-white/10 bg-slate-950/60 px-5 py-4 text-sm text-slate-200 shadow-xl">
+                        Starting agent…
+                      </div>
+                    </div>
+                  ) : null}
                 </LiveKitRoom>
               </div>
             )}
