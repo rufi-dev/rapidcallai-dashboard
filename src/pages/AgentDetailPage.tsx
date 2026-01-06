@@ -160,11 +160,17 @@ function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
 
   useEffect(() => {
     function recompute() {
-      const hasAgent = Array.from(room.remoteParticipants.values()).some((p) => {
+      // In the Talk panel, the room should only contain: (1) the web user, (2) the agent.
+      // Some deployments use non "agent-*" identities (e.g. "VoiceAgent"), so we fall back to:
+      // - any remote participant present => agent is connected
+      // - or explicit lk.agent.state attribute/prefix when available
+      const anyRemote = room.remoteParticipants.size > 0;
+      const hasMarkedAgent = Array.from(room.remoteParticipants.values()).some((p) => {
         const attrs = (p as any).attributes ?? {};
         if (typeof attrs["lk.agent.state"] !== "undefined") return true;
         return String(p.identity || "").startsWith("agent-");
       });
+      const hasAgent = anyRemote || hasMarkedAgent;
       setAgentReady(hasAgent);
       props.onReadyChange?.(hasAgent);
     }
