@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   BookOpen,
+  CheckCircle2,
   CreditCard,
   Headphones,
   ChevronDown,
@@ -85,6 +86,7 @@ export function AppShell() {
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -128,6 +130,46 @@ export function AppShell() {
 
             {/* Bottom-most profile */}
             <div className="mt-auto border-t border-white/10 pt-4">
+              {/* Plan / Usage (Retell-style) */}
+              <div
+                className="relative mb-3"
+                onMouseEnter={() => setPlanOpen(true)}
+                onMouseLeave={() => setPlanOpen(false)}
+              >
+                <button
+                  onClick={() => setPlanOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/10"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="text-brand-200">
+                      <CheckCircle2 size={18} />
+                    </div>
+                    <div className="truncate font-medium text-white">Pay As You Go</div>
+                  </div>
+                  <div className="text-slate-400">
+                    <ChevronDown size={18} className={planOpen ? "rotate-180 transition" : "transition"} />
+                  </div>
+                </button>
+
+                {planOpen ? (
+                  <div className="absolute bottom-[52px] left-0 w-full rounded-2xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-slate-300">Upcoming Invoice</div>
+                        <div className="font-semibold text-white">$2.00</div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-slate-300">Concurrency Used</div>
+                        <div className="font-semibold text-white">0/20</div>
+                      </div>
+                      <div className="pt-2 text-xs text-slate-500">
+                        Stripe integration coming next (these will be live).
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen((v) => !v)}
