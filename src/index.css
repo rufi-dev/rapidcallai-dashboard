@@ -53,6 +53,31 @@ body {
   animation: authFloat 8s ease-in-out infinite;
 }
 
+/* Vertical testimonial ticker (Vapi-style) */
+.auth-ticker-mask {
+  /* Soft fade top/bottom so cards feel like they flow in/out */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+}
+
+@keyframes authTicker {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.auth-ticker-track {
+  animation: authTicker 26s linear infinite;
+  will-change: transform;
+}
+
+.auth-ticker-mask:hover .auth-ticker-track {
+  animation-play-state: paused;
+}
+
 /* Scrollbar styling (prompt + transcript) */
 .scrollbar-brand {
   scrollbar-width: thin;

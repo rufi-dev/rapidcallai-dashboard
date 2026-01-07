@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, Lock, Mail, Sparkles, User as UserIcon } from "lucide-react";
 import { setToken } from "../lib/auth";
@@ -59,6 +59,31 @@ const TESTIMONIALS: Testimonial[] = [
     title: "AI Platform",
     quote: "Ship agents, iterate prompts, and keep control. Everything is organized exactly where I expect it.",
   },
+  {
+    name: "D. PM",
+    title: "Growth Team",
+    quote: "The UX is clean enough that non-technical teammates can run tests and review calls without help.",
+  },
+  {
+    name: "K. Builder",
+    title: "Indie Hacker",
+    quote: "Prompt iteration is fast, and the recordings + transcripts give instant feedback on what to fix.",
+  },
+  {
+    name: "R. Support",
+    title: "Operations",
+    quote: "Having one place for phone + web sessions is huge. We finally stopped switching tools all day.",
+  },
+  {
+    name: "T. Engineer",
+    title: "Realtime Systems",
+    quote: "The product feels snappy. Latency improvements are visible in analytics and confirmed in recordings.",
+  },
+  {
+    name: "N. Founder",
+    title: "AI Startup",
+    quote: "This is the first dashboard that looks premium and stays practical when you’re shipping daily.",
+  },
 ];
 
 function BrandMark() {
@@ -69,20 +94,44 @@ function BrandMark() {
   );
 }
 
+function TestimonialCard(props: { t: Testimonial }) {
+  const { t } = props;
+  return (
+    <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-2xl bg-brand-500/15 shadow-glow flex items-center justify-center text-brand-200 font-semibold">
+          {t.name.slice(0, 1)}
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-white">{t.name}</div>
+          <div className="text-xs text-slate-400">{t.title}</div>
+        </div>
+      </div>
+      <div className="mt-3 text-sm leading-relaxed text-slate-100/90">“{t.quote}”</div>
+    </div>
+  );
+}
+
+function TestimonialsTicker() {
+  // Duplicate for seamless infinite scroll (CSS animation).
+  const items = [...TESTIMONIALS, ...TESTIMONIALS];
+  return (
+    <div className="auth-ticker-mask mt-4 flex-1 min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5">
+      <div className="auth-ticker-track space-y-4">
+        {items.map((t, i) => (
+          <TestimonialCard key={`${i}-${t.name}`} t={t} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AuthShell(props: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
   footer: React.ReactNode;
 }) {
-  const [idx, setIdx] = useState(0);
-  const t = TESTIMONIALS[idx % TESTIMONIALS.length];
-
-  useEffect(() => {
-    const id = window.setInterval(() => setIdx((x) => x + 1), 6500);
-    return () => window.clearInterval(id);
-  }, []);
-
   return (
     <div className="min-h-screen">
       {/* cinematic gradient overlay */}
@@ -108,7 +157,7 @@ function AuthShell(props: {
           <div className="relative hidden lg:block">
             <div className="h-full rounded-3xl border border-white/10 bg-slate-950/25 p-8 overflow-hidden">
               <div className="absolute inset-0 auth-grid opacity-[0.55]" />
-              <div className="relative">
+              <div className="relative h-full flex flex-col">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs uppercase tracking-wider text-slate-400">What you get</div>
@@ -138,55 +187,38 @@ function AuthShell(props: {
                   </div>
                 </div>
 
-                <div className="mt-8">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs uppercase tracking-wider text-slate-400">Teams using this</div>
-                    <div className="flex items-center gap-1.5">
-                      {TESTIMONIALS.map((_, i) => (
-                        <div
-                          key={i}
-                          className={[
-                            "h-1.5 w-6 rounded-full transition",
-                            i === (idx % TESTIMONIALS.length) ? "bg-brand-400/80" : "bg-white/10",
-                          ].join(" ")}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-3xl border border-white/10 bg-black/20 p-6 auth-float">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-2xl bg-brand-500/15 shadow-glow flex items-center justify-center text-brand-200 font-semibold">
-                        {t.name.slice(0, 1)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-white">{t.name}</div>
-                        <div className="text-xs text-slate-400">{t.title}</div>
-                      </div>
-                    </div>
-                    <div className="mt-4 text-sm leading-relaxed text-slate-100/90">“{t.quote}”</div>
-                    <div className="mt-5 grid grid-cols-3 gap-2 text-xs text-slate-300">
-                      <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
-                        <div className="text-slate-400">Latency</div>
-                        <div className="mt-0.5 text-slate-100">fast</div>
-                      </div>
-                      <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
-                        <div className="text-slate-400">Setup</div>
-                        <div className="mt-0.5 text-slate-100">simple</div>
-                      </div>
-                      <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
-                        <div className="text-slate-400">UX</div>
-                        <div className="mt-0.5 text-slate-100">clean</div>
-                      </div>
-                    </div>
+                <div className="mt-7 flex items-center justify-between">
+                  <div className="text-xs uppercase tracking-wider text-slate-400">Teams using this</div>
+                  <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-300">
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Sales</span>
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Support</span>
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Ops</span>
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Engineering</span>
                   </div>
                 </div>
+
+                <TestimonialsTicker />
 
                 <div className="mt-7 flex items-center justify-between text-xs text-slate-400">
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
                     <span className="text-slate-300">Tip:</span> Use date filters in Analytics to validate improvements.
                   </div>
                   <div className="text-slate-500">Secure • Workspace-scoped • Fast</div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-300">
+                  <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
+                    <div className="text-slate-400">Latency</div>
+                    <div className="mt-0.5 text-slate-100">fast</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
+                    <div className="text-slate-400">Setup</div>
+                    <div className="mt-0.5 text-slate-100">simple</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
+                    <div className="text-slate-400">UX</div>
+                    <div className="mt-0.5 text-slate-100">clean</div>
+                  </div>
                 </div>
               </div>
             </div>
