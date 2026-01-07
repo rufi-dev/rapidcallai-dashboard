@@ -93,7 +93,7 @@ function ReviewCrossfade() {
   const b = REVIEWS[nextIdx];
 
   return (
-    <div className="relative h-[270px] w-full">
+    <div className="relative h-[360px] w-full">
       <div key={idx} className="absolute inset-0 auth-review auth-review-drop">
         <div className="flex items-center gap-3">
           <img
@@ -132,7 +132,7 @@ function ReviewCrossfade() {
 
 function ReviewSpotlight() {
   return (
-    <div className="auth-card auth-enter-delayed flex h-[560px] flex-col overflow-hidden">
+    <div className="auth-card auth-enter-delayed flex h-[640px] flex-col overflow-hidden">
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
@@ -188,10 +188,10 @@ function AuthLayout(props: {
       <div className="pointer-events-none fixed inset-0 auth-noise" />
 
       <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:py-0 lg:px-10">
-        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_460px_1fr]">
-          {/* Left: story */}
-          <div className="hidden lg:block">
-            <div className="auth-enter">
+        <div className="grid h-full items-center gap-8 lg:grid-cols-[520px_1fr]">
+          {/* Left: story + form */}
+          <div className="auth-enter">
+            <div className="hidden lg:block">
               <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
                 <Sparkles size={16} className="text-brand-300" /> Voice Studio
               </div>
@@ -199,7 +199,7 @@ function AuthLayout(props: {
               <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
                 Ship voice agents with a dashboard that feels <span className="text-brand-300">lux</span>.
               </h1>
-              <p className="mt-4 text-sm text-slate-300 max-w-md">
+              <p className="mt-4 text-sm text-slate-300 max-w-lg">
                 A calmer workflow for building, testing, and improving voice experiences—without switching tools all day.
               </p>
 
@@ -213,23 +213,9 @@ function AuthLayout(props: {
                   </div>
                 ))}
               </div>
-
-              <div className="mt-8 auth-card p-5">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-wider text-slate-400">What teams say</div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
-                    {props.mode === "login" ? "Welcome back" : "Get started"}
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <ReviewCrossfade />
-                </div>
-              </div>
             </div>
-          </div>
 
-          {/* Middle: form */}
-          <div className="auth-card auth-enter">
+            <div className="auth-card mt-8 lg:mt-10">
             <div className="border-b border-white/10 px-6 py-5">
               <div className="inline-flex items-center gap-2 rounded-2xl bg-brand-500/12 px-3 py-2 text-sm text-brand-200 shadow-glow">
                 <Sparkles size={16} /> Voice Studio
@@ -257,9 +243,10 @@ function AuthLayout(props: {
                 </div>
               </div>
             </div>
+            </div>
           </div>
 
-          {/* Right: product preview */}
+          {/* Right: BIG testimonials */}
           <div className="hidden lg:block">
             <ReviewSpotlight />
           </div>
