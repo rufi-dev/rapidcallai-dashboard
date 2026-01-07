@@ -154,8 +154,8 @@ export function BillingPage() {
               {billingErr
                 ? `Billing summary unavailable: ${billingErr}`
                 : billing && (!billing.pricingConfigured.llm || !billing.pricingConfigured.stt || !billing.pricingConfigured.tts)
-                  ? "Set LLM/STT/TTS pricing env vars on the server to enable accurate provider cost tracking."
-                  : "Billing history will be powered by Stripe later; upcoming invoice is estimated from call usage."}
+                  ? "Set LLM/STT/TTS pricing on the server to enable accurate usage-based billing."
+                  : "Billing history will be powered by Stripe later; upcoming invoice is estimated from usage."}
             </div>
           </div>
         ) : (
@@ -182,7 +182,7 @@ export function BillingPage() {
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <Card className="bg-slate-950/30">
-                <div className="text-xs text-slate-400">Cost breakdown (provider COGS)</div>
+                <div className="text-xs text-slate-400">Charges breakdown</div>
                 {billing?.breakdown ? (
                   <div className="mt-3 space-y-2 text-sm">
                     <div className="flex items-center justify-between gap-3">
@@ -204,7 +204,7 @@ export function BillingPage() {
                   </div>
                 )}
                 <div className="mt-3 text-xs text-slate-500">
-                  Uses `LLM_*`, `STT_USD_PER_MIN`, `TTS_USD_PER_1K_CHARS` rates from server env (set from official docs).
+                  Usage-based estimate. Final invoices will be issued via Stripe later.
                 </div>
               </Card>
 

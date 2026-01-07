@@ -204,8 +204,8 @@ export function AppShell() {
                         {billingErr
                           ? `Billing unavailable: ${billingErr}`
                           : billing && (!billing.pricingConfigured.llm || !billing.pricingConfigured.stt || !billing.pricingConfigured.tts)
-                            ? "Set LLM/STT/TTS pricing env vars on the server to enable accurate cost breakdown."
-                            : "Estimated from call usage; Stripe invoices will replace this later."}
+                            ? "Set LLM/STT/TTS pricing on the server to enable accurate usage-based billing."
+                            : "Estimated from usage; Stripe invoices will replace this later."}
                       </div>
                     </div>
                   </div>
