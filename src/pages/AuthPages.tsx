@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, Check, Lock, Mail, Sparkles, User as UserIcon } from "lucide-react";
+import { ArrowRight, BarChart3, Headphones, Lock, Mail, PhoneCall, Sparkles, User as UserIcon } from "lucide-react";
 import { setToken } from "../lib/auth";
 import { login, register } from "../lib/api";
 
-const BULLETS = [
-  "Web + telephony in one place",
-  "Playback-ready recordings with seeking",
-  "Clean role-based transcripts",
-  "Analytics with date filtering",
-];
+const QUICKSTART = [
+  { title: "Create an agent", desc: "Pick a prompt + welcome message.", icon: <Headphones size={16} /> },
+  { title: "Run a web test", desc: "Talk and iterate instantly.", icon: <PhoneCall size={16} /> },
+  { title: "Measure outcomes", desc: "Use analytics + recordings.", icon: <BarChart3 size={16} /> },
+] as const;
 
 function Field(props: {
   label: string;
@@ -46,7 +45,7 @@ function Field(props: {
 
 function StatsSpotlight() {
   return (
-    <div className="auth-card auth-enter-delayed flex h-[620px] flex-col overflow-hidden">
+    <div className="auth-card auth-enter-delayed flex h-full max-h-[calc(100vh-140px)] flex-col overflow-hidden">
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
@@ -62,7 +61,7 @@ function StatsSpotlight() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 py-6 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 px-6 py-6 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
             <div className="text-xs text-slate-400">Calls (24h)</div>
@@ -95,7 +94,7 @@ function StatsSpotlight() {
             <div className="text-xs text-slate-300 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">Filter-ready</div>
           </div>
 
-          <div className="mt-4 h-[140px] rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden">
+          <div className="mt-4 h-[120px] rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden">
             <div className="h-full w-full auth-sparkline" />
           </div>
 
@@ -137,30 +136,49 @@ function AuthLayout(props: {
       <div className="pointer-events-none fixed inset-0 auth-noise" />
 
       <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:py-0 lg:px-10">
-        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_520px_1fr]">
-          {/* Left: hero */}
-          <div className="hidden lg:flex auth-enter flex-col justify-center">
-            <div className="max-w-xl">
-              <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
-                <Sparkles size={16} className="text-brand-300" /> Voice Studio
+        <div className="grid h-full items-center gap-8 lg:grid-cols-[360px_520px_620px]">
+          {/* Left: visual quickstart (replaces the big hero text) */}
+          <div className="hidden lg:block auth-enter">
+            <div className="auth-card h-full max-h-[calc(100vh-140px)] overflow-hidden">
+              <div className="border-b border-white/10 px-5 py-5">
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm text-slate-200 shadow-glow">
+                  <Sparkles size={16} className="text-brand-300" /> Voice Studio
+                </div>
+                <div className="mt-4 text-lg font-semibold text-white">Quick start</div>
+                <div className="mt-1 text-sm text-slate-300">A clean workflow — no noise.</div>
               </div>
 
-              <h1 className="mt-6 text-5xl font-semibold tracking-tight text-white leading-[1.05]">
-                Ship voice agents with a dashboard that feels <span className="text-brand-300">lux</span>.
-              </h1>
-              <p className="mt-4 text-sm text-slate-300">
-                A calmer workflow for building, testing, and improving voice experiences—without switching tools all day.
-              </p>
-
-              <div className="mt-6 space-y-2 text-sm text-slate-200">
-                {BULLETS.map((b) => (
-                  <div key={b} className="flex items-center gap-2">
-                    <div className="rounded-full bg-brand-500/15 p-1 text-brand-200 shadow-glow">
-                      <Check size={14} />
+              <div className="px-5 py-5 space-y-3">
+                {QUICKSTART.map((s) => (
+                  <div key={s.title} className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-2xl bg-brand-500/12 p-2 text-brand-200 shadow-glow">{s.icon}</div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-white">{s.title}</div>
+                        <div className="mt-1 text-xs text-slate-300">{s.desc}</div>
+                      </div>
                     </div>
-                    <div className="text-slate-200/90">{b}</div>
                   </div>
                 ))}
+
+                <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs uppercase tracking-wider text-slate-400">What you’ll see</div>
+                  <div className="mt-3 space-y-2">
+                    <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full w-[55%] rounded-full bg-brand-400/60 auth-shimmer" />
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full w-[72%] rounded-full bg-white/10 auth-shimmer" />
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full w-[42%] rounded-full bg-white/10 auth-shimmer" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 px-5 py-5 text-xs text-slate-400">
+                Built for speed: web tests, telephony, recordings, analytics.
               </div>
             </div>
           </div>
