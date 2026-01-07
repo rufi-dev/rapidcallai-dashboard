@@ -180,10 +180,16 @@ export function BillingPage() {
                                     <div className="font-semibold text-white">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
                                   </div>
                                 ) : null}
-                                {typeof billing?.breakdown?.platformUsd === "number" && billing.breakdown.platformUsd > 0 ? (
+                                {typeof billing?.breakdown?.platformUsageUsd === "number" && billing.breakdown.platformUsageUsd > 0 ? (
                                   <div className="flex items-center justify-between gap-3">
-                                    <div className="text-slate-300">Platform</div>
-                                    <div className="font-semibold text-white">${billing.breakdown.platformUsd.toFixed(2)}</div>
+                                    <div className="text-slate-300">Platform usage</div>
+                                    <div className="font-semibold text-white">${billing.breakdown.platformUsageUsd.toFixed(2)}</div>
+                                  </div>
+                                ) : null}
+                                {typeof billing?.breakdown?.platformBaseUsd === "number" && billing.breakdown.platformBaseUsd > 0 ? (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-slate-300">Platform base</div>
+                                    <div className="font-semibold text-white">${billing.breakdown.platformBaseUsd.toFixed(2)}</div>
                                   </div>
                                 ) : null}
                                 {typeof billing?.otherUsd === "number" && billing.otherUsd > 0 ? (
@@ -259,10 +265,16 @@ export function BillingPage() {
                         <div className="font-semibold text-white">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
                       </div>
                     ) : null}
-                    {typeof billing.breakdown.platformUsd === "number" && billing.breakdown.platformUsd > 0 ? (
+                    {typeof billing.breakdown.platformUsageUsd === "number" && billing.breakdown.platformUsageUsd > 0 ? (
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-slate-300">Platform</div>
-                        <div className="font-semibold text-white">${billing.breakdown.platformUsd.toFixed(2)}</div>
+                        <div className="text-slate-300">Platform usage</div>
+                        <div className="font-semibold text-white">${billing.breakdown.platformUsageUsd.toFixed(2)}</div>
+                      </div>
+                    ) : null}
+                    {typeof billing.breakdown.platformBaseUsd === "number" && billing.breakdown.platformBaseUsd > 0 ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-slate-300">Platform base</div>
+                        <div className="font-semibold text-white">${billing.breakdown.platformBaseUsd.toFixed(2)}</div>
                       </div>
                     ) : null}
                     {typeof billing.otherUsd === "number" && billing.otherUsd > 0 ? (

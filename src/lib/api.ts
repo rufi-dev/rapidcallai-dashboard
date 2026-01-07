@@ -113,8 +113,9 @@ export type BillingSummary = {
         llmUsd: number;
         sttUsd: number;
         ttsUsd: number;
+        platformUsageUsd?: number;
         phoneNumbersUsd?: number;
-        platformUsd?: number;
+        platformBaseUsd?: number;
       };
   otherUsd?: number | null;
   fixedFees?: {

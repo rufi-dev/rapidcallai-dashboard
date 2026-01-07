@@ -200,10 +200,16 @@ export function AppShell() {
                               <div className="font-medium text-slate-200">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
                             </div>
                           ) : null}
-                          {typeof billing.breakdown.platformUsd === "number" && billing.breakdown.platformUsd > 0 ? (
+                          {typeof billing.breakdown.platformUsageUsd === "number" && billing.breakdown.platformUsageUsd > 0 ? (
                             <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                              <div className="text-slate-400">Platform</div>
-                              <div className="font-medium text-slate-200">${billing.breakdown.platformUsd.toFixed(2)}</div>
+                              <div className="text-slate-400">Platform usage</div>
+                              <div className="font-medium text-slate-200">${billing.breakdown.platformUsageUsd.toFixed(2)}</div>
+                            </div>
+                          ) : null}
+                          {typeof billing.breakdown.platformBaseUsd === "number" && billing.breakdown.platformBaseUsd > 0 ? (
+                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+                              <div className="text-slate-400">Platform base</div>
+                              <div className="font-medium text-slate-200">${billing.breakdown.platformBaseUsd.toFixed(2)}</div>
                             </div>
                           ) : null}
                           {typeof billing.otherUsd === "number" && billing.otherUsd > 0 ? (
