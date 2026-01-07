@@ -130,8 +130,28 @@ body {
   }
 }
 
-.auth-review-in {
-  animation: authReviewIn 7s ease-in-out infinite;
+/* Bigger, more visible motion (drop in with a slight “bend/tilt”, then glide away) */
+@keyframes authReviewDrop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -26px, 0) rotate(-2.2deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  86% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) rotate(1.4deg);
+  }
+}
+
+.auth-review-drop {
+  animation: authReviewDrop 7.2s cubic-bezier(0.2, 0.9, 0.2, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
