@@ -20,6 +20,39 @@ body {
   background-position: 0 0, center;
 }
 
+/* Auth page showcase effects */
+.auth-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0),
+    radial-gradient(ellipse at top, rgba(0, 240, 106, 0.14), transparent 60%);
+  background-size: 24px 24px, auto;
+  background-position: 0 0, center;
+}
+
+.auth-aurora {
+  background:
+    radial-gradient(900px 500px at 20% 10%, rgba(0, 240, 106, 0.12), transparent 60%),
+    radial-gradient(700px 420px at 75% 20%, rgba(56, 189, 248, 0.10), transparent 60%),
+    radial-gradient(700px 520px at 60% 85%, rgba(168, 85, 247, 0.09), transparent 65%);
+  filter: blur(6px);
+  opacity: 0.9;
+}
+
+@keyframes authFloat {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.auth-float {
+  animation: authFloat 8s ease-in-out infinite;
+}
+
 /* Scrollbar styling (prompt + transcript) */
 .scrollbar-brand {
   scrollbar-width: thin;
