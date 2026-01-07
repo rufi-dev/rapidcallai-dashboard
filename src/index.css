@@ -271,6 +271,19 @@ body {
   }
 }
 
+/* Auth line chart: draw animation */
+.auth-line-draw {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: authLineDraw 1.6s ease-out forwards;
+}
+
+@keyframes authLineDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* Scrollbar styling (prompt + transcript) */
 .scrollbar-brand {
   scrollbar-width: thin;

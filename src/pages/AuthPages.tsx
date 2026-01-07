@@ -46,6 +46,25 @@ function Field(props: {
 function StatsSpotlight() {
   const series = [24, 38, 30, 44, 58, 52, 68];
   const max = Math.max(...series);
+  const min = Math.min(...series);
+  const chartW = 560;
+  const chartH = 170;
+  const padX = 18;
+  const padY = 16;
+  const innerW = chartW - padX * 2;
+  const innerH = chartH - padY * 2;
+  const norm = (v: number) => {
+    const denom = Math.max(1, max - min);
+    return (v - min) / denom;
+  };
+  const points = series
+    .map((v, i) => {
+      const x = padX + (innerW * i) / Math.max(1, series.length - 1);
+      const y = padY + (1 - norm(v)) * innerH;
+      return [x, y] as const;
+    })
+    .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+    .join(" ");
   return (
     <div className="auth-card auth-panel auth-enter-delayed flex flex-col overflow-hidden">
       <div className="border-b border-white/10 px-6 py-5">
@@ -65,25 +84,15 @@ function StatsSpotlight() {
 
       <div className="flex-1 min-h-0 px-6 py-6 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="text-xs text-slate-400">Calls (24h)</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight text-white">68</div>
             <div className="mt-2 text-xs text-brand-200">+12% vs yesterday</div>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="text-xs text-slate-400">Avg latency</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight text-white">0.68s</div>
             <div className="mt-2 text-xs text-slate-300">TTFT + endpointing</div>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="text-xs text-slate-400">Avg duration</div>
-            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">01:21</div>
-            <div className="mt-2 text-xs text-slate-300">web + phone</div>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="text-xs text-slate-400">Cost today</div>
-            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">$3.12</div>
-            <div className="mt-2 text-xs text-slate-300">tokens + TTS</div>
           </div>
         </div>
 
@@ -96,20 +105,75 @@ function StatsSpotlight() {
             <div className="text-xs text-slate-300 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">Filter-ready</div>
           </div>
 
-          <div className="mt-4 h-[150px] rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden">
-            <div className="h-full w-full grid items-end grid-cols-7 gap-2">
-              {series.map((v, i) => (
-                <div key={i} className="w-full flex flex-col items-center justify-end gap-2">
-                  <div
-                    className="w-full rounded-xl bg-white/10 overflow-hidden border border-white/10"
-                    style={{ height: `${Math.max(18, Math.round((v / max) * 120))}px` }}
-                  >
-                    <div className="h-full w-full bg-gradient-to-t from-brand-500/35 to-brand-400/10 auth-shimmer" />
-                  </div>
-                  <div className="text-[10px] text-slate-500">{i + 1}</div>
-                </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden flex-1 min-h-0 flex items-center">
+            <svg
+              viewBox={`0 0 ${chartW} ${chartH}`}
+              className="w-full h-[190px]"
+              role="img"
+              aria-label="Calls over time line chart"
+            >
+              <defs>
+                <linearGradient id="authLine" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stopColor="rgba(0,240,106,0.9)" />
+                  <stop offset="1" stopColor="rgba(56,189,248,0.75)" />
+                </linearGradient>
+                <linearGradient id="authFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="rgba(0,240,106,0.18)" />
+                  <stop offset="1" stopColor="rgba(0,0,0,0)" />
+                </linearGradient>
+                <filter id="authGlow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="2.5" result="b" />
+                  <feColorMatrix
+                    in="b"
+                    type="matrix"
+                    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 12 -6"
+                    result="g"
+                  />
+                  <feMerge>
+                    <feMergeNode in="g" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              {/* grid */}
+              {[0.25, 0.5, 0.75].map((p, i) => (
+                <line
+                  key={i}
+                  x1={padX}
+                  x2={chartW - padX}
+                  y1={padY + innerH * p}
+                  y2={padY + innerH * p}
+                  stroke="rgba(255,255,255,0.06)"
+                  strokeWidth="1"
+                />
               ))}
-            </div>
+
+              {/* filled area */}
+              <polygon
+                points={`${points} ${chartW - padX},${chartH - padY} ${padX},${chartH - padY}`}
+                fill="url(#authFill)"
+              />
+
+              {/* line */}
+              <polyline
+                points={points}
+                fill="none"
+                stroke="url(#authLine)"
+                strokeWidth="3.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#authGlow)"
+                className="auth-line-draw"
+              />
+
+              {/* points */}
+              {series.map((v, i) => {
+                const x = padX + (innerW * i) / Math.max(1, series.length - 1);
+                const y = padY + (1 - norm(v)) * innerH;
+                return <circle key={i} cx={x} cy={y} r="3.2" fill="rgba(0,240,106,0.9)" opacity="0.85" />;
+              })}
+            </svg>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-300">
