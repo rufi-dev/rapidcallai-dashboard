@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Card } from "../components/ui";
 import { CreditCard, ExternalLink } from "lucide-react";
+import { getBillingSummary, type BillingSummary } from "../lib/api";
+import { toast } from "sonner";
 
 type InvoiceRow = {
   id: string;
@@ -10,14 +12,53 @@ type InvoiceRow = {
 };
 
 const MOCK_INVOICES: InvoiceRow[] = [
-  { id: "upcoming", createdAt: "Upcoming invoice", amount: "$0.00", status: "ongoing" },
   { id: "2026-01-03", createdAt: "3 Jan 2026", amount: "$15.00", status: "paid" },
   { id: "2025-12-24", createdAt: "24 Dec 2025", amount: "$13.41", status: "paid" },
 ];
 
 export function BillingPage() {
   const [tab, setTab] = useState<"history" | "usage">("history");
-  const rows = useMemo(() => MOCK_INVOICES, []);
+  const [billing, setBilling] = useState<BillingSummary | null>(null);
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [billingErr, setBillingErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const b = await getBillingSummary();
+        if (!mounted) return;
+        setBilling(b);
+        setBillingErr(null);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Failed to load billing summary";
+        if (!mounted) return;
+        setBilling(null);
+        setBillingErr(msg);
+        toast.error(msg);
+      } finally {
+        if (mounted) setBillingLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const rows = useMemo(() => {
+    const upcoming = {
+      id: "upcoming",
+      createdAt: "Upcoming invoice",
+      amount:
+        billing?.upcomingInvoiceUsd != null
+          ? `$${billing.upcomingInvoiceUsd.toFixed(2)}`
+          : billingLoading
+            ? "Loading…"
+            : "—",
+      status: "ongoing" as const,
+    };
+    return [upcoming, ...MOCK_INVOICES];
+  }, [billing?.upcomingInvoiceUsd, billingLoading]);
 
   return (
     <div className="space-y-6">
@@ -109,6 +150,13 @@ export function BillingPage() {
                 </tbody>
               </table>
             </div>
+            <div className="mt-4 text-xs text-slate-500">
+              {billingErr
+                ? `Billing summary unavailable: ${billingErr}`
+                : billing && (!billing.pricingConfigured.llm || !billing.pricingConfigured.stt || !billing.pricingConfigured.tts)
+                  ? "Set LLM/STT/TTS pricing env vars on the server to enable accurate provider cost tracking."
+                  : "Billing history will be powered by Stripe later; upcoming invoice is estimated from call usage."}
+            </div>
           </div>
         ) : (
           <div className="p-4">
@@ -120,7 +168,9 @@ export function BillingPage() {
               </Card>
               <Card className="bg-slate-950/30">
                 <div className="text-xs text-slate-400">Upcoming invoice</div>
-                <div className="mt-2 text-lg font-semibold text-white">$0.00</div>
+                <div className="mt-2 text-lg font-semibold text-white">
+                  {billing?.upcomingInvoiceUsd != null ? `$${billing.upcomingInvoiceUsd.toFixed(2)}` : billingLoading ? "Loading…" : "—"}
+                </div>
                 <div className="mt-1 text-sm text-slate-300">This month (estimated)</div>
               </Card>
               <Card className="bg-slate-950/30">
@@ -129,6 +179,63 @@ export function BillingPage() {
                 <div className="mt-1 text-sm text-slate-300">Limits will be enforced here later.</div>
               </Card>
             </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">Cost breakdown (provider COGS)</div>
+                {billing?.breakdown ? (
+                  <div className="mt-3 space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-slate-300">LLM</div>
+                      <div className="font-semibold text-white">${billing.breakdown.llmUsd.toFixed(2)}</div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-slate-300">STT</div>
+                      <div className="font-semibold text-white">${billing.breakdown.sttUsd.toFixed(2)}</div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-slate-300">TTS</div>
+                      <div className="font-semibold text-white">${billing.breakdown.ttsUsd.toFixed(2)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm text-slate-300">
+                    {billingLoading ? "Loading…" : "No breakdown yet (missing pricing or no completed calls in range)."}
+                  </div>
+                )}
+                <div className="mt-3 text-xs text-slate-500">
+                  Uses `LLM_*`, `STT_USD_PER_MIN`, `TTS_USD_PER_1K_CHARS` rates from server env (set from official docs).
+                </div>
+              </Card>
+
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">Usage totals (this month)</div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-slate-500">LLM prompt tokens</div>
+                    <div className="mt-1 font-semibold text-white">{billing?.usageTotals.llmPromptTokens ?? 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">LLM completion tokens</div>
+                    <div className="mt-1 font-semibold text-white">{billing?.usageTotals.llmCompletionTokens ?? 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">STT audio seconds</div>
+                    <div className="mt-1 font-semibold text-white">{billing?.usageTotals.sttAudioSeconds ?? 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">TTS characters</div>
+                    <div className="mt-1 font-semibold text-white">{billing?.usageTotals.ttsCharacters ?? 0}</div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {billingErr ? (
+              <div className="mt-4 text-xs text-rose-200">
+                Billing summary unavailable: {billingErr}
+              </div>
+            ) : null}
           </div>
         )}
       </Card>
