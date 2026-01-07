@@ -11,11 +11,13 @@ import {
   endCall,
   getAgent,
   getAgentAnalytics,
+  getBillingCatalog,
   previewTts,
   startAgent,
   updateAgent,
   type AgentAnalytics,
   type AgentProfile,
+  type BillingCatalog,
   type CallTranscriptItem,
   type StartResponse,
 } from "../lib/api";
@@ -344,6 +346,9 @@ export function AgentDetailPage() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  const [llmModel, setLlmModel] = useState<string>("");
+  const [billingCatalog, setBillingCatalog] = useState<BillingCatalog | null>(null);
+
   const [welcomeMode, setWelcomeMode] = useState<"ai" | "user">("user");
   const [aiMessageMode, setAiMessageMode] = useState<"dynamic" | "custom">("dynamic");
   const [aiMessageText, setAiMessageText] = useState("");
@@ -374,6 +379,21 @@ export function AgentDetailPage() {
         URL.revokeObjectURL(previewUrlRef.current);
         previewUrlRef.current = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    getBillingCatalog()
+      .then((c) => {
+        if (!mounted) return;
+        setBillingCatalog(c);
+      })
+      .catch(() => {
+        // non-fatal
+      });
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -408,6 +428,7 @@ export function AgentDetailPage() {
       const a = await getAgent(agentId);
       setAgent(a);
       setDraftPrompt(a.promptDraft ?? a.promptPublished ?? "");
+      setLlmModel(String(a.llmModel || ""));
       setWelcomeMode(a.welcome?.mode ?? "user");
       setAiMessageMode(a.welcome?.aiMessageMode ?? "dynamic");
       setAiMessageText(a.welcome?.aiMessageText ?? "");
@@ -450,6 +471,7 @@ export function AgentDetailPage() {
     const savedVoice = agent?.voice ?? {};
     return (
       saved !== draftPrompt ||
+      String(agent?.llmModel || "") !== llmModel ||
       (savedWelcome.mode ?? "user") !== welcomeMode ||
       (savedWelcome.aiMessageMode ?? "dynamic") !== aiMessageMode ||
       (savedWelcome.aiMessageText ?? "") !== aiMessageText ||
@@ -458,7 +480,7 @@ export function AgentDetailPage() {
       (savedVoice.model ?? (voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)) !== voiceModel ||
       (savedVoice.voiceId ?? "") !== voiceId
     );
-  }, [agent, draftPrompt, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, voiceProvider, voiceModel, voiceId]);
+  }, [agent, draftPrompt, llmModel, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, voiceProvider, voiceModel, voiceId]);
   const canSave = useMemo(() => draftPrompt.trim().length > 0 && isDirty && !saving, [draftPrompt, isDirty, saving]);
 
   async function onSave() {
@@ -468,6 +490,7 @@ export function AgentDetailPage() {
     try {
       const updated = await updateAgent(agent.id, {
         promptDraft: draftPrompt,
+        llmModel: llmModel || "",
         welcome: {
           mode: welcomeMode,
           aiMessageMode,
@@ -508,6 +531,7 @@ export function AgentDetailPage() {
 
   function onRevert() {
     setDraftPrompt(agent?.promptDraft ?? agent?.promptPublished ?? "");
+    setLlmModel(String(agent?.llmModel || ""));
     setWelcomeMode(agent?.welcome?.mode ?? "user");
     setAiMessageMode(agent?.welcome?.aiMessageMode ?? "dynamic");
     setAiMessageText(agent?.welcome?.aiMessageText ?? "");
@@ -732,6 +756,59 @@ export function AgentDetailPage() {
             </div>
             <div className="p-5">
               <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+                <div className="text-sm font-semibold">LLM</div>
+                <div className="mt-1 text-xs text-slate-400">Persisted per agent. Used for every call by this agent.</div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Model</div>
+                    <select
+                      value={llmModel}
+                      onChange={(e) => setLlmModel(e.target.value)}
+                      className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    >
+                      <option value="">Default (server)</option>
+                      {(billingCatalog?.llmModels ?? []).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.id}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs text-slate-500">
+                      Pricing preview comes from OpenAI’s pricing table.
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-xs text-slate-400">Token pricing (per 1M)</div>
+                    {(() => {
+                      if (!llmModel) return <div className="mt-2 text-sm text-slate-200">Using server default model.</div>;
+                      const rec = (billingCatalog?.llmModels ?? []).find((m) => m.id === llmModel);
+                      if (!rec) return <div className="mt-2 text-sm text-slate-200">No pricing data for this model.</div>;
+                      return (
+                        <div className="mt-3 space-y-2 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-slate-300">Input</div>
+                            <div className="font-semibold text-white">{rec.inputUsdPer1M != null ? `$${rec.inputUsdPer1M}` : "—"}</div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-slate-300">Cached input</div>
+                            <div className="font-semibold text-white">
+                              {rec.cachedInputUsdPer1M != null ? `$${rec.cachedInputUsdPer1M}` : "—"}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-slate-300">Output</div>
+                            <div className="font-semibold text-white">{rec.outputUsdPer1M != null ? `$${rec.outputUsdPer1M}` : "—"}</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
                 <div className="text-sm font-semibold">Welcome Message</div>
                 <div className="mt-1 text-xs text-slate-400">Controls how the session starts</div>
 
@@ -793,7 +870,7 @@ export function AgentDetailPage() {
               </div>
 
               <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-                Model settings (LLM/STT/TTS) tabs can be added here later.
+                STT/TTS model selection + pricing can be added next (Deepgram/ElevenLabs/Cartesia/LiveKit).
               </div>
             </div>
           </Card>

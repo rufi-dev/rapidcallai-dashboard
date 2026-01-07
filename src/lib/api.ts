@@ -5,6 +5,7 @@ export type AgentProfile = {
   name: string;
   promptDraft?: string;
   promptPublished?: string;
+  llmModel?: string; // persisted per-agent LLM model (e.g., "gpt-5.2")
   welcome?: {
     mode?: "ai" | "user";
     aiMessageMode?: "dynamic" | "custom";
@@ -115,6 +116,7 @@ export type BillingSummary = {
       };
   usageTotals: {
     llmPromptTokens: number;
+    llmPromptCachedTokens: number;
     llmCompletionTokens: number;
     sttAudioSeconds: number;
     ttsCharacters: number;
@@ -124,6 +126,17 @@ export type BillingSummary = {
     stt: boolean;
     tts: boolean;
   };
+};
+
+export type BillingCatalog = {
+  source: "default" | "env" | string;
+  llmModels: Array<{
+    id: string;
+    inputUsdPer1M: number | null;
+    cachedInputUsdPer1M: number | null;
+    outputUsdPer1M: number | null;
+  }>;
+  docs?: { openaiPricing?: string };
 };
 
 export type AgentAnalytics = {
@@ -259,6 +272,7 @@ export async function createAgent(input: {
   name: string;
   promptDraft?: string;
   promptPublished?: string;
+  llmModel?: string;
   welcome?: AgentProfile["welcome"];
   voice?: AgentProfile["voice"];
 }): Promise<AgentProfile> {
@@ -285,6 +299,7 @@ export async function updateAgent(
     name?: string;
     promptDraft?: string;
     publish?: boolean;
+    llmModel?: string;
     welcome?: AgentProfile["welcome"];
     voice?: AgentProfile["voice"];
   }
@@ -411,6 +426,12 @@ export async function getBillingSummary(): Promise<BillingSummary> {
   const res = await apiFetch(`/api/billing/summary`);
   if (!res.ok) throw new Error(`getBillingSummary failed: ${await readError(res)}`);
   return (await res.json()) as BillingSummary;
+}
+
+export async function getBillingCatalog(): Promise<BillingCatalog> {
+  const res = await apiFetch(`/api/billing/catalog`);
+  if (!res.ok) throw new Error(`getBillingCatalog failed: ${await readError(res)}`);
+  return (await res.json()) as BillingCatalog;
 }
 
 export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {
