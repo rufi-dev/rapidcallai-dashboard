@@ -41,48 +41,65 @@ type Testimonial = {
   name: string;
   title: string;
   quote: string;
+  avatarSeed: string;
 };
 
 const TESTIMONIALS: Testimonial[] = [
   {
     name: "A. Founder",
     title: "Voice SaaS",
-    quote: "We went from idea to production in days. The call history + recordings made debugging effortless.",
+    avatarSeed: "alex",
+    quote:
+      "We went from idea to production in days. The call history + recordings made debugging effortless. I can actually show my team what happened instead of guessing.",
   },
   {
     name: "S. Ops Lead",
     title: "Customer Support",
-    quote: "The dashboard feels fast, clean, and actually usable. The transcript + analytics combo is gold.",
+    avatarSeed: "sara",
+    quote:
+      "The dashboard feels fast, clean, and actually usable. The transcript + analytics combo is gold. We finally have one source of truth when something goes wrong.",
   },
   {
     name: "M. Engineer",
     title: "AI Platform",
-    quote: "Ship agents, iterate prompts, and keep control. Everything is organized exactly where I expect it.",
+    avatarSeed: "mike",
+    quote:
+      "Ship agents, iterate prompts, and keep control. Everything is organized exactly where I expect it. I can tweak prompts and verify results in one loop.",
   },
   {
     name: "D. PM",
     title: "Growth Team",
-    quote: "The UX is clean enough that non-technical teammates can run tests and review calls without help.",
+    avatarSeed: "dina",
+    quote:
+      "The UX is clean enough that non-technical teammates can run tests and review calls without help. It feels premium but still practical for day‑to‑day work.",
   },
   {
     name: "K. Builder",
     title: "Indie Hacker",
-    quote: "Prompt iteration is fast, and the recordings + transcripts give instant feedback on what to fix.",
+    avatarSeed: "kai",
+    quote:
+      "Prompt iteration is fast, and the recordings + transcripts give instant feedback on what to fix. I spend less time debugging and more time shipping improvements.",
   },
   {
     name: "R. Support",
     title: "Operations",
-    quote: "Having one place for phone + web sessions is huge. We finally stopped switching tools all day.",
+    avatarSeed: "rina",
+    quote:
+      "Having one place for phone + web sessions is huge. We finally stopped switching tools all day. It made handoffs between support and engineering so much smoother.",
   },
   {
     name: "T. Engineer",
     title: "Realtime Systems",
-    quote: "The product feels snappy. Latency improvements are visible in analytics and confirmed in recordings.",
+    avatarSeed: "tom",
+    quote:
+      "The product feels snappy. Latency improvements are visible in analytics and confirmed in recordings. When we tune something, we can actually measure it.",
   },
   {
     name: "N. Founder",
     title: "AI Startup",
-    quote: "This is the first dashboard that looks premium and stays practical when you’re shipping daily.",
+    avatarSeed: "nora",
+    quote:
+      "This is the first dashboard that looks premium and stays practical when you’re shipping daily. The layout makes it easy to demo, but it’s also great for internal QA.",
   },
 ];
 
@@ -94,14 +111,47 @@ function BrandMark() {
   );
 }
 
+function avatarDataUri(seed: string) {
+  const s = String(seed || "user");
+  // simple deterministic “photo-like” SVG avatar (no external requests)
+  const hue = Math.abs(
+    s.split("").reduce((acc, ch) => {
+      return (acc * 31 + ch.charCodeAt(0)) % 360;
+    }, 7)
+  );
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="hsl(${hue} 80% 60%)" stop-opacity="1"/>
+      <stop offset="1" stop-color="hsl(${(hue + 40) % 360} 85% 55%)" stop-opacity="1"/>
+    </linearGradient>
+    <filter id="f" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="0.6"/>
+    </filter>
+  </defs>
+  <rect width="80" height="80" rx="18" fill="url(#g)"/>
+  <circle cx="40" cy="33" r="14" fill="rgba(255,255,255,0.92)"/>
+  <path d="M16 72c4-16 17-24 24-24s20 8 24 24" fill="rgba(255,255,255,0.92)"/>
+  <circle cx="30" cy="33" r="2" fill="rgba(2,6,23,0.75)"/>
+  <circle cx="50" cy="33" r="2" fill="rgba(2,6,23,0.75)"/>
+  <path d="M34 39c4 4 8 4 12 0" stroke="rgba(2,6,23,0.55)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M10 18c10-10 22-14 30-14s20 4 30 14" stroke="rgba(255,255,255,0.18)" stroke-width="10" filter="url(#f)" fill="none" stroke-linecap="round"/>
+</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
+}
+
 function TestimonialCard(props: { t: Testimonial }) {
   const { t } = props;
   return (
     <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-2xl bg-brand-500/15 shadow-glow flex items-center justify-center text-brand-200 font-semibold">
-          {t.name.slice(0, 1)}
-        </div>
+        <img
+          src={avatarDataUri(t.avatarSeed)}
+          alt={`${t.name} avatar`}
+          className="h-10 w-10 rounded-2xl border border-white/10 shadow-glow object-cover"
+          loading="lazy"
+        />
         <div className="min-w-0">
           <div className="text-sm font-semibold text-white">{t.name}</div>
           <div className="text-xs text-slate-400">{t.title}</div>
@@ -116,7 +166,7 @@ function TestimonialsTicker() {
   // Duplicate for seamless infinite scroll (CSS animation).
   const items = [...TESTIMONIALS, ...TESTIMONIALS];
   return (
-    <div className="auth-ticker-mask mt-4 flex-1 min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5">
+    <div className="auth-ticker-mask mt-3 flex-1 min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5">
       <div className="auth-ticker-track space-y-4">
         {items.map((t, i) => (
           <TestimonialCard key={`${i}-${t.name}`} t={t} />
@@ -133,15 +183,15 @@ function AuthShell(props: {
   footer: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden">
       {/* cinematic gradient overlay */}
       <div className="pointer-events-none fixed inset-0 auth-aurora" />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl items-stretch px-4 py-10 lg:px-8">
+      <div className="mx-auto flex min-h-screen lg:min-h-0 lg:h-full w-full max-w-7xl items-stretch px-4 py-8 lg:px-8">
         <div className="grid w-full gap-8 lg:grid-cols-[440px_1fr] items-stretch">
           {/* Left: form */}
           <div className="relative">
-            <div className="sticky top-10">
+            <div className="lg:sticky lg:top-10">
               <BrandMark />
               <h1 className="mt-6 text-3xl font-semibold tracking-tight text-white">{props.title}</h1>
               <p className="mt-2 text-sm text-slate-300">{props.subtitle}</p>
@@ -149,6 +199,21 @@ function AuthShell(props: {
               <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_0_0_1px_rgba(0,240,106,.08),0_30px_120px_rgba(0,0,0,.45)]">
                 {props.children}
                 <div className="mt-5">{props.footer}</div>
+
+                <div className="mt-5 grid grid-cols-3 gap-2 text-xs text-slate-300">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="text-slate-400">Secure</div>
+                    <div className="mt-0.5 text-slate-100">token auth</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="text-slate-400">Fast</div>
+                    <div className="mt-0.5 text-slate-100">low latency</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="text-slate-400">Unified</div>
+                    <div className="mt-0.5 text-slate-100">web + phone</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -197,6 +262,21 @@ function AuthShell(props: {
                   </div>
                 </div>
 
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-300">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="text-slate-400">Avg setup</div>
+                    <div className="mt-0.5 text-slate-100">~10 min</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="text-slate-400">Playback</div>
+                    <div className="mt-0.5 text-slate-100">instant</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="text-slate-400">Iteration</div>
+                    <div className="mt-0.5 text-slate-100">fast</div>
+                  </div>
+                </div>
+
                 <TestimonialsTicker />
 
                 <div className="mt-7 flex items-center justify-between text-xs text-slate-400">
@@ -204,21 +284,6 @@ function AuthShell(props: {
                     <span className="text-slate-300">Tip:</span> Use date filters in Analytics to validate improvements.
                   </div>
                   <div className="text-slate-500">Secure • Workspace-scoped • Fast</div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-300">
-                  <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
-                    <div className="text-slate-400">Latency</div>
-                    <div className="mt-0.5 text-slate-100">fast</div>
-                  </div>
-                  <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
-                    <div className="text-slate-400">Setup</div>
-                    <div className="mt-0.5 text-slate-100">simple</div>
-                  </div>
-                  <div className="rounded-2xl bg-white/5 px-3 py-2 border border-white/10">
-                    <div className="text-slate-400">UX</div>
-                    <div className="mt-0.5 text-slate-100">clean</div>
-                  </div>
                 </div>
               </div>
             </div>
