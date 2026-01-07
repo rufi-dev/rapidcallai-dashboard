@@ -114,6 +114,7 @@ export type BillingSummary = {
         sttUsd: number;
         ttsUsd: number;
       };
+  otherUsd?: number | null;
   usageTotals: {
     llmPromptTokens: number;
     llmPromptCachedTokens: number;
@@ -136,6 +137,8 @@ export type BillingCatalog = {
     cachedInputUsdPer1M: number | null;
     outputUsdPer1M: number | null;
   }>;
+  stt?: { fallbackUsdPerMin?: number | null };
+  tts?: { fallbackUsdPer1KChars?: number | null };
   retail?: { markupMultiplier?: number };
   docs?: { openaiPricing?: string };
 };

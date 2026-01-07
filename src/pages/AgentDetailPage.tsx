@@ -420,14 +420,24 @@ export function AgentDetailPage() {
 
   function fmtMoneyPerMin(v: number | null): string {
     if (v == null || !Number.isFinite(v)) return "—/min";
+    if (v < 0.0001) return `$${v.toFixed(6)}/min`;
+    if (v < 0.001) return `$${v.toFixed(4)}/min`;
     if (v < 0.01) return `$${v.toFixed(3)}/min`;
     return `$${v.toFixed(2)}/min`;
+  }
+
+  function voiceMinutes(): number {
+    const sttSec = Number(usageSummary?.totals?.sttAudioSeconds ?? 0);
+    const sttMin = sttSec > 0 ? sttSec / 60 : 0;
+    if (Number.isFinite(sttMin) && sttMin > 0) return sttMin;
+    const m = Number(usageSummary?.totals?.minutes ?? 0);
+    return Number.isFinite(m) && m > 0 ? m : 0;
   }
 
   function computeLlmUsdPerMin(modelId: string): number | null {
     const rec = billingCatalog?.llmModels?.find((m) => m.id === modelId);
     if (!rec) return null;
-    const minutes = usageSummary?.totals?.minutes ?? 0;
+    const minutes = voiceMinutes();
     if (!Number.isFinite(minutes) || minutes <= 0) return null;
 
     const inPerMin = (usageSummary?.totals.llmPromptTokens ?? 0) / minutes;
@@ -443,6 +453,28 @@ export function AgentDetailPage() {
     const m = Number(billingCatalog?.retail?.markupMultiplier ?? 1);
     const retail = cogs * (Number.isFinite(m) && m > 0 ? m : 1);
     return retail;
+  }
+
+  function computeTotalUsdPerMin(modelId: string): number | null {
+    const minutes = voiceMinutes();
+    if (!Number.isFinite(minutes) || minutes <= 0) return null;
+
+    const markup = Number(billingCatalog?.retail?.markupMultiplier ?? 1);
+    const m = Number.isFinite(markup) && markup > 0 ? markup : 1;
+
+    const llm = computeLlmUsdPerMin(modelId) ?? 0;
+
+    const sttBase = Number(billingCatalog?.stt?.fallbackUsdPerMin ?? 0);
+    const stt = Number.isFinite(sttBase) && sttBase > 0 ? sttBase * m : 0;
+
+    const ttsPer1k = Number(billingCatalog?.tts?.fallbackUsdPer1KChars ?? 0);
+    const charsPerMin = (Number(usageSummary?.totals?.ttsCharacters ?? 0) || 0) / minutes;
+    const tts =
+      Number.isFinite(ttsPer1k) && ttsPer1k > 0 && Number.isFinite(charsPerMin) && charsPerMin > 0
+        ? ((charsPerMin / 1000) * ttsPer1k) * m
+        : 0;
+
+    return llm + stt + tts;
   }
 
   function LlmModelDropdown(props: {
@@ -466,7 +498,7 @@ export function AgentDetailPage() {
 
     const options = useMemo(() => {
       const rows = (billingCatalog?.llmModels ?? []).map((m) => {
-        const usdPerMin = computeLlmUsdPerMin(m.id);
+        const usdPerMin = computeTotalUsdPerMin(m.id);
         return { id: m.id, label: m.id.replaceAll("-", " "), usdPerMin };
       });
       const needle = q.trim().toLowerCase();
@@ -475,7 +507,7 @@ export function AgentDetailPage() {
     }, [billingCatalog, q, usageSummary]);
 
     const selectedId = props.value;
-    const selectedUsdPerMin = selectedId ? computeLlmUsdPerMin(selectedId) : null;
+    const selectedUsdPerMin = selectedId ? computeTotalUsdPerMin(selectedId) : null;
 
     return (
       <div ref={boxRef} className="relative">
@@ -489,7 +521,7 @@ export function AgentDetailPage() {
               <span className="ml-2 text-xs text-slate-400">{selectedId ? fmtMoneyPerMin(selectedUsdPerMin) : ""}</span>
             </div>
             <div className="mt-0.5 text-xs text-slate-500">
-              {usageSummary?.totals?.minutes ? `Based on ${usageSummary.totals.minutes.toFixed(1)} mins usage` : "No usage yet (need calls to estimate $/min)"}
+              {voiceMinutes() > 0 ? `Based on ${voiceMinutes().toFixed(1)} mins voice usage` : "No usage yet (need calls to estimate $/min)"}
             </div>
           </div>
           <div className="text-slate-400">
@@ -938,16 +970,16 @@ export function AgentDetailPage() {
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
                     <div className="text-xs text-slate-400">Current estimate</div>
                     <div className="mt-2 text-2xl font-semibold text-white">
-                      {llmModel ? fmtMoneyPerMin(computeLlmUsdPerMin(llmModel)) : "—"}
+                      {llmModel ? fmtMoneyPerMin(computeTotalUsdPerMin(llmModel)) : "—"}
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      Based on this agent’s historical token usage per minute. If usage changes, $/min will change.
+                      Estimated total voice cost (LLM + STT + TTS) per minute based on this agent’s usage.
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+              <div className="mt-4 rounded-3xl border border-white/10 bg-slate-950/30 p-4">
                 <div className="text-sm font-semibold">Welcome Message</div>
                 <div className="mt-1 text-xs text-slate-400">Controls how the session starts</div>
 

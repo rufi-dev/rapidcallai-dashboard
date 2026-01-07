@@ -21,6 +21,7 @@ export function BillingPage() {
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [billingLoading, setBillingLoading] = useState(true);
   const [billingErr, setBillingErr] = useState<string | null>(null);
+  const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -117,35 +118,78 @@ export function BillingPage() {
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.id} className="border-b border-white/5 last:border-b-0">
-                      <td className="px-3 py-3 text-slate-200">{r.createdAt}</td>
-                      <td className="px-3 py-3 text-slate-200">{r.amount}</td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={[
-                            "inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs",
-                            r.status === "paid"
-                              ? "bg-emerald-500/10 text-emerald-200"
-                              : "bg-white/5 text-slate-200",
-                          ].join(" ")}
-                        >
+                    <>
+                      <tr
+                        key={r.id}
+                        className="border-b border-white/5 last:border-b-0 cursor-pointer hover:bg-white/5"
+                        onClick={() => setExpandedInvoice((cur) => (cur === r.id ? null : r.id))}
+                        title="Toggle details"
+                      >
+                        <td className="px-3 py-3 text-slate-200">{r.createdAt}</td>
+                        <td className="px-3 py-3 text-slate-200">{r.amount}</td>
+                        <td className="px-3 py-3">
                           <span
                             className={[
-                              "h-1.5 w-1.5 rounded-full",
-                              r.status === "paid" ? "bg-emerald-400" : "bg-slate-300",
+                              "inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs",
+                              r.status === "paid"
+                                ? "bg-emerald-500/10 text-emerald-200"
+                                : "bg-white/5 text-slate-200",
                             ].join(" ")}
-                          />
-                          {r.status === "paid" ? "Paid" : "Ongoing"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        {r.status === "paid" ? (
-                          <Button variant="secondary">Invoice</Button>
-                        ) : (
-                          <Button variant="secondary">Details</Button>
-                        )}
-                      </td>
-                    </tr>
+                          >
+                            <span
+                              className={[
+                                "h-1.5 w-1.5 rounded-full",
+                                r.status === "paid" ? "bg-emerald-400" : "bg-slate-300",
+                              ].join(" ")}
+                            />
+                            {r.status === "paid" ? "Paid" : "Ongoing"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <Button variant="secondary">{expandedInvoice === r.id ? "Hide" : "Details"}</Button>
+                        </td>
+                      </tr>
+
+                      {expandedInvoice === r.id ? (
+                        <tr className="border-b border-white/5 last:border-b-0">
+                          <td colSpan={4} className="px-3 pb-4">
+                            <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+                              <div className="text-sm font-semibold text-white">Included charges</div>
+                              <div className="mt-3 space-y-2 text-sm">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-slate-300">LLM</div>
+                                  <div className="font-semibold text-white">
+                                    {billing?.breakdown?.llmUsd != null ? `$${billing.breakdown.llmUsd.toFixed(2)}` : "—"}
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-slate-300">STT</div>
+                                  <div className="font-semibold text-white">
+                                    {billing?.breakdown?.sttUsd != null ? `$${billing.breakdown.sttUsd.toFixed(2)}` : "—"}
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-slate-300">TTS</div>
+                                  <div className="font-semibold text-white">
+                                    {billing?.breakdown?.ttsUsd != null ? `$${billing.breakdown.ttsUsd.toFixed(2)}` : "—"}
+                                  </div>
+                                </div>
+                                {typeof billing?.otherUsd === "number" && billing.otherUsd > 0 ? (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-slate-300">Other</div>
+                                    <div className="font-semibold text-white">${billing.otherUsd.toFixed(2)}</div>
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              <div className="mt-4 text-xs text-slate-500">
+                                {billing?.upcomingInvoiceUsd != null ? `Estimated total: $${billing.upcomingInvoiceUsd.toFixed(2)}` : "Estimated total: —"}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </>
                   ))}
                 </tbody>
               </table>
@@ -197,6 +241,12 @@ export function BillingPage() {
                       <div className="text-slate-300">TTS</div>
                       <div className="font-semibold text-white">${billing.breakdown.ttsUsd.toFixed(2)}</div>
                     </div>
+                    {typeof billing.otherUsd === "number" && billing.otherUsd > 0 ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-slate-300">Other</div>
+                        <div className="font-semibold text-white">${billing.otherUsd.toFixed(2)}</div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-3 text-sm text-slate-300">
