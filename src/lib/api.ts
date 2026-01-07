@@ -101,6 +101,31 @@ export type AnalyticsSeriesPoint = {
   minutes: number;
 };
 
+export type BillingSummary = {
+  currency: "USD";
+  periodStartMs: number;
+  periodEndMs: number;
+  upcomingInvoiceUsd: number | null;
+  breakdown:
+    | null
+    | {
+        llmUsd: number;
+        sttUsd: number;
+        ttsUsd: number;
+      };
+  usageTotals: {
+    llmPromptTokens: number;
+    llmCompletionTokens: number;
+    sttAudioSeconds: number;
+    ttsCharacters: number;
+  };
+  pricingConfigured: {
+    llm: boolean;
+    stt: boolean;
+    tts: boolean;
+  };
+};
+
 export type AgentAnalytics = {
   agentId: string;
   totals: AnalyticsTotals & { callCount: number; completedCallCount: number };
@@ -380,6 +405,12 @@ export async function getAnalyticsRange(input: {
   const res = await apiFetch(`/api/analytics?${qs.toString()}`);
   if (!res.ok) throw new Error(`getAnalyticsRange failed: ${await readError(res)}`);
   return (await res.json()) as { range: { from: number; to: number; tz: string }; totals: AnalyticsTotals; series: AnalyticsSeriesPoint[] };
+}
+
+export async function getBillingSummary(): Promise<BillingSummary> {
+  const res = await apiFetch(`/api/billing/summary`);
+  if (!res.ok) throw new Error(`getBillingSummary failed: ${await readError(res)}`);
+  return (await res.json()) as BillingSummary;
 }
 
 export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {
