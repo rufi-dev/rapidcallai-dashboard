@@ -574,7 +574,8 @@ export function AgentDetailPage() {
                     <div className="min-w-0">
                       <div className="truncate font-medium">{opt.id}</div>
                       <div className="text-xs text-slate-500">
-                        {fmtMoneyPerMin(opt.usdPerMin)} {billingCatalog?.retail?.markupMultiplier ? `• retail` : ""}
+                        {fmtMoneyPerMin(opt.usdPerMin)}{" "}
+                        {billingCatalog?.retail?.markupMultiplier && billingCatalog.retail.markupMultiplier > 1 ? `• retail` : ""}
                       </div>
                     </div>
                     {selectedId === opt.id ? <Check size={16} className="text-brand-300" /> : null}
