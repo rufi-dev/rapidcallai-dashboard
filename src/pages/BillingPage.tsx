@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card } from "../components/ui";
 import { CreditCard, ExternalLink } from "lucide-react";
-import { getBillingSummary, type BillingSummary } from "../lib/api";
+import { getBillingSummary, getBillingUsage, type BillingSummary, type BillingUsageResponse } from "../lib/api";
 import { toast } from "sonner";
 
 type InvoiceRow = {
@@ -22,6 +22,16 @@ export function BillingPage() {
   const [billingLoading, setBillingLoading] = useState(true);
   const [billingErr, setBillingErr] = useState<string | null>(null);
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
+
+  const [usageBucket, setUsageBucket] = useState<"day" | "week">("day");
+  const [usageFrom, setUsageFrom] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  });
+  const [usageTo, setUsageTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [usage, setUsage] = useState<BillingUsageResponse | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageErr, setUsageErr] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -45,6 +55,31 @@ export function BillingPage() {
       mounted = false;
     };
   }, []);
+
+  async function loadUsage() {
+    setUsageLoading(true);
+    setUsageErr(null);
+    try {
+      const from = new Date(`${usageFrom}T00:00:00.000Z`).getTime();
+      const to = new Date(`${usageTo}T23:59:59.999Z`).getTime();
+      const u = await getBillingUsage({ from, to, bucket: usageBucket });
+      setUsage(u);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to load billing usage";
+      setUsage(null);
+      setUsageErr(msg);
+      toast.error(msg);
+    } finally {
+      setUsageLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (tab !== "usage") return;
+    // load on first open
+    if (!usage && !usageLoading) void loadUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const rows = useMemo(() => {
     const upcoming = {
@@ -222,6 +257,162 @@ export function BillingPage() {
           </div>
         ) : (
           <div className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-300">Usage period</div>
+                <input
+                  type="date"
+                  value={usageFrom}
+                  onChange={(e) => setUsageFrom(e.target.value)}
+                  className="date-input-brand rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+                />
+                <div className="text-slate-500">→</div>
+                <input
+                  type="date"
+                  value={usageTo}
+                  onChange={(e) => setUsageTo(e.target.value)}
+                  className="date-input-brand rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-1 text-sm">
+                  <button
+                    onClick={() => setUsageBucket("day")}
+                    className={[
+                      "rounded-lg px-3 py-1.5 transition",
+                      usageBucket === "day" ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
+                    ].join(" ")}
+                  >
+                    Day
+                  </button>
+                  <button
+                    onClick={() => setUsageBucket("week")}
+                    className={[
+                      "rounded-lg px-3 py-1.5 transition",
+                      usageBucket === "week" ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
+                    ].join(" ")}
+                  >
+                    Week
+                  </button>
+                </div>
+                <Button variant="secondary" onClick={() => void loadUsage()} disabled={usageLoading}>
+                  {usageLoading ? "Loading…" : "Apply"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">Total cost</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {usage?.totals?.totalUsd != null ? `$${Number(usage.totals.totalUsd).toFixed(2)}` : usageLoading ? "Loading…" : "—"}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">
+                  {usage?.range ? `From ${new Date(usage.range.from).toLocaleDateString()} to ${new Date(usage.range.to).toLocaleDateString()}` : ""}
+                </div>
+              </Card>
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">Call minutes</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {usage?.totals?.callMinutes != null ? `${Number(usage.totals.callMinutes).toFixed(2)} mins` : usageLoading ? "Loading…" : "—"}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">{usage?.totals?.calls != null ? `${usage.totals.calls} calls` : ""}</div>
+              </Card>
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">Average cost per minute</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {usage?.totals?.totalUsd != null && usage?.totals?.callMinutes
+                    ? `$${(Number(usage.totals.totalUsd) / Math.max(0.0001, Number(usage.totals.callMinutes))).toFixed(2)}`
+                    : usageLoading
+                      ? "Loading…"
+                      : "—"}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">Includes fixed fees in this range</div>
+              </Card>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Card className="bg-slate-950/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-slate-400">Total cost over time</div>
+                  <div className="text-xs text-slate-500">{usageBucket === "week" ? "Weekly" : "Daily"}</div>
+                </div>
+                <div className="mt-3 h-56">
+                  {usage?.series?.length ? (
+                    <svg width="100%" height="100%" viewBox="0 0 600 220" preserveAspectRatio="none">
+                      {(() => {
+                        const pts = usage.series.map((p, i) => ({ x: i, y: Number(p.totalUsd || 0) }));
+                        const maxY = Math.max(1e-6, ...pts.map((p) => p.y));
+                        const minY = Math.min(0, ...pts.map((p) => p.y));
+                        const w = 600;
+                        const h = 220;
+                        const padX = 20;
+                        const padY = 16;
+                        const spanX = Math.max(1, pts.length - 1);
+                        const scaleX = (w - padX * 2) / spanX;
+                        const scaleY = (h - padY * 2) / Math.max(1e-6, maxY - minY);
+                        const d = pts
+                          .map((p) => {
+                            const x = padX + p.x * scaleX;
+                            const y = h - padY - (p.y - minY) * scaleY;
+                            return `${p.x === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+                          })
+                          .join(" ");
+                        return (
+                          <>
+                            <path d={d} fill="none" stroke="rgba(56,189,248,0.9)" strokeWidth="3" className="auth-chart-line-draw" />
+                            <path d={d} fill="none" stroke="rgba(56,189,248,0.25)" strokeWidth="10" className="auth-chart-line-draw" />
+                          </>
+                        );
+                      })()}
+                    </svg>
+                  ) : usageLoading ? (
+                    <div className="flex h-full items-center justify-center text-sm text-slate-400">Loading…</div>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-slate-400">No data in range</div>
+                  )}
+                </div>
+              </Card>
+
+              <Card className="bg-slate-950/30 p-4">
+                <div className="text-xs text-slate-400">Cost by category</div>
+                {usage?.totals ? (
+                  <div className="mt-3 space-y-3 text-sm">
+                    {(() => {
+                      const items = [
+                        { k: "Platform usage", v: Number(usage.totals.platformUsageUsd || 0) },
+                        { k: "LLM", v: Number(usage.totals.llmUsd || 0) },
+                        { k: "STT", v: Number(usage.totals.sttUsd || 0) },
+                        { k: "TTS", v: Number(usage.totals.ttsUsd || 0) },
+                        { k: "Phone numbers", v: Number(usage.totals.phoneNumbersUsd || 0) },
+                        { k: "Platform base", v: Number(usage.totals.platformBaseUsd || 0) },
+                      ].filter((it) => it.v > 0.00001);
+                      const max = Math.max(1e-6, ...items.map((i) => i.v));
+                      return items.map((it) => (
+                        <div key={it.k}>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-slate-300">{it.k}</div>
+                            <div className="font-semibold text-white">${it.v.toFixed(2)}</div>
+                          </div>
+                          <div className="mt-2 h-2 rounded-full bg-white/5">
+                            <div
+                              className="h-2 rounded-full bg-sky-400/70"
+                              style={{ width: `${Math.max(2, Math.round((it.v / max) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                ) : usageLoading ? (
+                  <div className="mt-3 text-sm text-slate-400">Loading…</div>
+                ) : (
+                  <div className="mt-3 text-sm text-slate-400">No data</div>
+                )}
+              </Card>
+            </div>
+
+            {usageErr ? <div className="mt-4 text-xs text-rose-200">Failed to load usage: {usageErr}</div> : null}
             <div className="grid gap-4 md:grid-cols-3">
               <Card className="bg-slate-950/30">
                 <div className="text-xs text-slate-400">Plan</div>

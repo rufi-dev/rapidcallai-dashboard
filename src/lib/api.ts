@@ -151,6 +151,43 @@ export type BillingCatalog = {
   docs?: { openaiPricing?: string };
 };
 
+export type MetricsSnapshot = {
+  // basic webrtc-ish metrics we store today
+  latency?: {
+    llm_ttft_ms_avg?: number | null;
+    eou_transcription_ms_avg?: number | null;
+    eou_end_ms_avg?: number | null;
+    agent_turn_latency_ms_avg?: number | null;
+  };
+  // usage numbers
+  usage?: {
+    llm_prompt_tokens?: number;
+    llm_prompt_cached_tokens?: number;
+    llm_completion_tokens?: number;
+    stt_audio_duration?: number;
+    tts_characters_count?: number;
+  };
+};
+
+export type BillingUsagePoint = {
+  t: number; // bucket start (ms)
+  callMinutes: number;
+  llmUsd: number;
+  sttUsd: number;
+  ttsUsd: number;
+  platformUsageUsd: number;
+  phoneNumbersUsd: number;
+  platformBaseUsd: number;
+  totalUsd: number;
+};
+
+export type BillingUsageResponse = {
+  range: { from: number; to: number; tz: string };
+  bucket: "day" | "week";
+  series: BillingUsagePoint[];
+  totals: Omit<BillingUsagePoint, "t"> & { calls: number };
+};
+
 export type AgentUsageSummary = {
   agentId: string;
   range: { from: number; to: number; tz: string };
@@ -458,6 +495,21 @@ export async function getBillingCatalog(): Promise<BillingCatalog> {
   const res = await apiFetch(`/api/billing/catalog`);
   if (!res.ok) throw new Error(`getBillingCatalog failed: ${await readError(res)}`);
   return (await res.json()) as BillingCatalog;
+}
+
+export async function getBillingUsage(input: {
+  from: number;
+  to: number;
+  bucket: "day" | "week";
+}): Promise<BillingUsageResponse> {
+  const qs = new URLSearchParams({
+    from: String(input.from),
+    to: String(input.to),
+    bucket: input.bucket,
+  });
+  const res = await apiFetch(`/api/billing/usage?${qs.toString()}`);
+  if (!res.ok) throw new Error(`getBillingUsage failed: ${await readError(res)}`);
+  return (await res.json()) as BillingUsageResponse;
 }
 
 export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {
