@@ -93,7 +93,7 @@ function ReviewCrossfade() {
   const b = REVIEWS[nextIdx];
 
   return (
-    <div className="relative h-[360px] w-full">
+    <div className="relative h-[420px] w-full">
       <div key={idx} className="absolute inset-0 auth-review auth-review-drop">
         <div className="flex items-center gap-3">
           <img
@@ -107,7 +107,7 @@ function ReviewCrossfade() {
             <div className="text-sm text-slate-300">{a.title}</div>
           </div>
         </div>
-        <div className="mt-4 text-sm leading-relaxed text-slate-100/90">“{a.quote}”</div>
+        <div className="mt-5 text-base leading-relaxed text-slate-100/90">“{a.quote}”</div>
       </div>
 
       {/* preloaded second card for smoother feel */}
@@ -132,7 +132,7 @@ function ReviewCrossfade() {
 
 function ReviewSpotlight() {
   return (
-    <div className="auth-card auth-enter-delayed flex h-[640px] flex-col overflow-hidden">
+    <div className="auth-card auth-enter-delayed flex h-[680px] flex-col overflow-hidden">
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
@@ -146,10 +146,10 @@ function ReviewSpotlight() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 py-6">
+      <div className="flex-1 px-6 pt-6 pb-10">
         <ReviewCrossfade />
 
-        <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-slate-300">
+        <div className="mt-8 grid grid-cols-3 gap-2 text-xs text-slate-300">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
             <div className="text-slate-400">Time to value</div>
             <div className="mt-0.5 text-slate-100">minutes</div>
@@ -188,29 +188,31 @@ function AuthLayout(props: {
       <div className="pointer-events-none fixed inset-0 auth-noise" />
 
       <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:py-0 lg:px-10">
-        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_520px_1fr]">
+        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_500px_640px]">
           {/* Left: hero */}
-          <div className="hidden lg:block auth-enter">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
-              <Sparkles size={16} className="text-brand-300" /> Voice Studio
-            </div>
+          <div className="hidden lg:flex auth-enter flex-col justify-center">
+            <div className="max-w-md">
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
+                <Sparkles size={16} className="text-brand-300" /> Voice Studio
+              </div>
 
-            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
-              Ship voice agents with a dashboard that feels <span className="text-brand-300">lux</span>.
-            </h1>
-            <p className="mt-4 text-sm text-slate-300 max-w-lg">
-              A calmer workflow for building, testing, and improving voice experiences—without switching tools all day.
-            </p>
+              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
+                Ship voice agents with a dashboard that feels <span className="text-brand-300">lux</span>.
+              </h1>
+              <p className="mt-4 text-sm text-slate-300">
+                A calmer workflow for building, testing, and improving voice experiences—without switching tools all day.
+              </p>
 
-            <div className="mt-6 space-y-2 text-sm text-slate-200">
-              {BULLETS.map((b) => (
-                <div key={b} className="flex items-center gap-2">
-                  <div className="rounded-full bg-brand-500/15 p-1 text-brand-200 shadow-glow">
-                    <Check size={14} />
+              <div className="mt-6 space-y-2 text-sm text-slate-200">
+                {BULLETS.map((b) => (
+                  <div key={b} className="flex items-center gap-2">
+                    <div className="rounded-full bg-brand-500/15 p-1 text-brand-200 shadow-glow">
+                      <Check size={14} />
+                    </div>
+                    <div className="text-slate-200/90">{b}</div>
                   </div>
-                  <div className="text-slate-200/90">{b}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
