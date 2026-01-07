@@ -1,42 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, Check, Lock, Mail, Sparkles, User as UserIcon } from "lucide-react";
 import { setToken } from "../lib/auth";
 import { login, register } from "../lib/api";
-import review1 from "../assets/reviews/r1.jpg";
-import review2 from "../assets/reviews/r2.jpg";
-import review3 from "../assets/reviews/r3.jpg";
-
-type Review = {
-  name: string;
-  title: string;
-  quote: string;
-  photo: string;
-};
-
-const REVIEWS: Review[] = [
-  {
-    name: "Maya Chen",
-    title: "Ops Lead • Support",
-    photo: review1,
-    quote:
-      "The UI is genuinely calm and fast. We review calls, share a link internally, and fix the prompt in minutes. It feels like a product you can trust in production.",
-  },
-  {
-    name: "Omar K.",
-    title: "Founder • Voice SaaS",
-    photo: review2,
-    quote:
-      "Recordings + transcripts changed everything. Instead of debating what happened, we just open the call and see it. The dashboard looks premium without getting in the way.",
-  },
-  {
-    name: "Lina R.",
-    title: "Engineer • Realtime",
-    photo: review3,
-    quote:
-      "It’s rare to get something this clean. You can iterate prompts, test on web, then validate in analytics. The whole loop is tight, which keeps shipping momentum high.",
-  },
-];
 
 const BULLETS = [
   "Web + telephony in one place",
@@ -78,97 +44,80 @@ function Field(props: {
   );
 }
 
-function ReviewCrossfade() {
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (mq?.matches) return;
-    const id = window.setInterval(() => setIdx((x) => (x + 1) % REVIEWS.length), 7200);
-    return () => window.clearInterval(id);
-  }, []);
-
-  const a = REVIEWS[idx % REVIEWS.length];
-  const nextIdx = (idx + 1) % REVIEWS.length;
-  const b = REVIEWS[nextIdx];
-
+function StatsSpotlight() {
   return (
-    <div className="relative h-[420px] w-full">
-      <div key={idx} className="absolute inset-0 auth-review auth-review-drop">
-        <div className="flex items-center gap-3">
-          <img
-            src={a.photo}
-            alt={`${a.name} photo`}
-            className="h-12 w-12 rounded-2xl border border-white/10 shadow-glow object-cover"
-            loading="lazy"
-          />
-          <div className="min-w-0">
-            <div className="text-base font-semibold text-white leading-tight">{a.name}</div>
-            <div className="text-sm text-slate-300">{a.title}</div>
-          </div>
-        </div>
-        <div className="mt-5 text-base leading-relaxed text-slate-100/90">“{a.quote}”</div>
-      </div>
-
-      {/* preloaded second card for smoother feel */}
-      <div className="absolute inset-0 auth-review opacity-0 pointer-events-none">
-        <div className="flex items-center gap-3">
-          <img
-            src={b.photo}
-            alt=""
-            className="h-12 w-12 rounded-2xl border border-white/10 shadow-glow object-cover"
-            loading="lazy"
-          />
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-white">{b.name}</div>
-            <div className="text-xs text-slate-400">{b.title}</div>
-          </div>
-        </div>
-        <div className="mt-3 text-sm leading-relaxed text-slate-100/90">“{b.quote}”</div>
-      </div>
-    </div>
-  );
-}
-
-function ReviewSpotlight() {
-  return (
-    <div className="auth-card auth-enter-delayed flex h-[680px] flex-col overflow-hidden">
+    <div className="auth-card auth-enter-delayed flex h-[620px] flex-col overflow-hidden">
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs uppercase tracking-wider text-slate-400">Testimonials</div>
-            <div className="mt-1 text-lg font-semibold text-white">Real feedback from real teams</div>
+            <div className="text-xs uppercase tracking-wider text-slate-400">Live statistics</div>
+            <div className="mt-1 text-lg font-semibold text-white">See the system move</div>
           </div>
-          <div className="rounded-2xl bg-brand-500/10 px-3 py-2 text-xs text-brand-200 shadow-glow">Verified</div>
+          <div className="rounded-2xl bg-brand-500/10 px-3 py-2 text-xs text-brand-200 shadow-glow auth-pulse-dot">
+            Live
+          </div>
         </div>
         <div className="mt-3 text-sm text-slate-300">
-          One story at a time — the card drops in, stays readable, then glides away.
+          No long paragraphs — just signal. A clean snapshot of performance and usage.
         </div>
       </div>
 
-      <div className="flex-1 px-6 pt-6 pb-10">
-        <ReviewCrossfade />
-
-        <div className="mt-8 grid grid-cols-3 gap-2 text-xs text-slate-300">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-            <div className="text-slate-400">Time to value</div>
-            <div className="mt-0.5 text-slate-100">minutes</div>
+      <div className="flex-1 px-6 py-6 flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-slate-400">Calls (24h)</div>
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">68</div>
+            <div className="mt-2 text-xs text-brand-200">+12% vs yesterday</div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-            <div className="text-slate-400">Workflow</div>
-            <div className="mt-0.5 text-slate-100">calm</div>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-slate-400">Avg latency</div>
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">0.68s</div>
+            <div className="mt-2 text-xs text-slate-300">TTFT + endpointing</div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-            <div className="text-slate-400">Quality</div>
-            <div className="mt-0.5 text-slate-100">premium</div>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-slate-400">Avg duration</div>
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">01:21</div>
+            <div className="mt-2 text-xs text-slate-300">web + phone</div>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-slate-400">Cost today</div>
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">$3.12</div>
+            <div className="mt-2 text-xs text-slate-300">tokens + TTS</div>
           </div>
         </div>
-      </div>
 
-      <div className="border-t border-white/10 px-6 py-5">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 flex-1 min-h-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-white">Calls over time</div>
+              <div className="mt-1 text-xs text-slate-400">Last 7 days • UTC</div>
+            </div>
+            <div className="text-xs text-slate-300 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">Filter-ready</div>
+          </div>
+
+          <div className="mt-4 h-[140px] rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden">
+            <div className="h-full w-full auth-sparkline" />
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-300">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-slate-400">Completion</div>
+              <div className="mt-0.5 text-slate-100">92%</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-slate-400">Recordings</div>
+              <div className="mt-0.5 text-slate-100">Ready</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+              <div className="text-slate-400">Transcripts</div>
+              <div className="mt-0.5 text-slate-100">Role-based</div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">New review every ~7s</div>
-          <div className="text-slate-500">No spam • No noise • Just signal</div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Updates automatically</div>
+          <div className="text-slate-500">Clean • Lux • Measurable</div>
         </div>
       </div>
     </div>
@@ -188,15 +137,15 @@ function AuthLayout(props: {
       <div className="pointer-events-none fixed inset-0 auth-noise" />
 
       <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:py-0 lg:px-10">
-        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_500px_640px]">
+        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_520px_1fr]">
           {/* Left: hero */}
           <div className="hidden lg:flex auth-enter flex-col justify-center">
-            <div className="max-w-md">
+            <div className="max-w-xl">
               <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
                 <Sparkles size={16} className="text-brand-300" /> Voice Studio
               </div>
 
-              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
+              <h1 className="mt-6 text-5xl font-semibold tracking-tight text-white leading-[1.05]">
                 Ship voice agents with a dashboard that feels <span className="text-brand-300">lux</span>.
               </h1>
               <p className="mt-4 text-sm text-slate-300">
@@ -248,8 +197,8 @@ function AuthLayout(props: {
           </div>
 
           {/* Right: testimonials */}
-          <div className="hidden lg:block">
-            <ReviewSpotlight />
+          <div className="hidden lg:block justify-self-end w-full max-w-[620px]">
+            <StatsSpotlight />
           </div>
         </div>
       </div>

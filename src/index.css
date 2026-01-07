@@ -113,6 +113,15 @@ body {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
+/* Clamp helper for testimonial text so the card doesn’t look empty/oversized */
+.auth-clamp-6 {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 @keyframes authReviewIn {
   0% {
     opacity: 0;
@@ -154,12 +163,105 @@ body {
   animation: authReviewDrop 7.2s cubic-bezier(0.18, 0.92, 0.22, 1) both;
 }
 
+.auth-pulse-dot {
+  position: relative;
+  padding-left: 30px;
+}
+.auth-pulse-dot::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 240, 106, 0.9);
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 0 rgba(0, 240, 106, 0.35);
+  animation: authPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes authPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 240, 106, 0.40);
+    opacity: 1;
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 240, 106, 0.0);
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 240, 106, 0.0);
+    opacity: 0.95;
+  }
+}
+
+/* Animated sparkline background for auth stats panel */
+.auth-sparkline {
+  position: relative;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+    radial-gradient(circle at 20% 40%, rgba(0,240,106,0.18), transparent 55%),
+    radial-gradient(circle at 80% 60%, rgba(56,189,248,0.12), transparent 55%);
+  overflow: hidden;
+}
+.auth-sparkline::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(circle at 10% 50%, rgba(0,240,106,0.25), transparent 45%),
+    radial-gradient(circle at 60% 30%, rgba(56,189,248,0.18), transparent 45%),
+    radial-gradient(circle at 85% 70%, rgba(168,85,247,0.12), transparent 45%);
+  filter: blur(10px);
+  animation: authSpark 8s ease-in-out infinite;
+}
+.auth-sparkline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(0,240,106,0.22), transparent);
+  transform: translateX(-120%);
+  animation: authSweep 3.2s ease-in-out infinite;
+  opacity: 0.55;
+}
+
+@keyframes authSpark {
+  0% {
+    transform: translate3d(-4%, -2%, 0) rotate(-1deg);
+  }
+  50% {
+    transform: translate3d(4%, 2%, 0) rotate(1deg);
+  }
+  100% {
+    transform: translate3d(-4%, -2%, 0) rotate(-1deg);
+  }
+}
+
+@keyframes authSweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  60% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-bg-lux,
   .auth-enter,
   .auth-enter-delayed,
-  .auth-review-in,
   .auth-shimmer::after {
+    animation: none !important;
+  }
+  .auth-pulse-dot::before,
+  .auth-sparkline::before,
+  .auth-sparkline::after {
     animation: none !important;
   }
 }
