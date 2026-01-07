@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { ClipboardCopy, CloudUpload, Mic, MicOff, Save, Undo2, Wand2 } from "lucide-react";
+import { ClipboardCopy, CloudUpload, Mic, MicOff, Play, Save, Undo2, Wand2 } from "lucide-react";
 import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment } from "livekit-client";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import {
   endCall,
   getAgent,
   getAgentAnalytics,
+  previewTts,
   startAgent,
   updateAgent,
   type AgentAnalytics,
@@ -28,6 +29,84 @@ type TranscriptItem = {
   firstReceivedTime: number;
   role: "agent" | "user";
 };
+
+const ELEVENLABS_MODELS = [
+  { id: "eleven_multilingual_v2", name: "Multilingual v2", note: "Best overall quality" },
+  { id: "eleven_turbo_v2_5", name: "Turbo v2.5", note: "Lower latency" },
+  { id: "eleven_monolingual_v1", name: "Monolingual v1", note: "Legacy (English)" },
+] as const;
+
+const ELEVENLABS_VOICES = [
+  {
+    id: "CwhRBWXzGAHq8TQ4Fs17",
+    name: "Roger",
+    description: "Laid-Back, Casual, Resonant",
+    sampleText: "Hey there! I'm Roger, and I'm here to help you with whatever you need. What can I do for you today?",
+    languages: ["English", "French", "German", "Dutch", "Spanish"],
+  },
+  {
+    id: "EXAVITQu4vr4xnSDxMaL",
+    name: "Sarah",
+    description: "Mature, Reassuring, Confident",
+    sampleText: "Hello, I'm Sarah. I bring a confident and warm approach to our conversation. How may I assist you today?",
+    languages: ["English", "French", "Arabic", "German", "Dutch", "Spanish"],
+  },
+  {
+    id: "FGY2WhTYpPnrIDTdsKH5",
+    name: "Laura",
+    description: "Enthusiast, Quirky Attitude",
+    sampleText: "Hi! I'm Laura, and I'm super excited to help you out! What brings you here today?",
+    languages: ["English", "French", "Arabic", "Chinese", "German"],
+  },
+  {
+    id: "IKne3meq5aSn9XLyUdCD",
+    name: "Charlie",
+    description: "Deep, Confident, Energetic",
+    sampleText: "Hello! I'm Charlie, and I'm ready to tackle any challenge with you. What would you like to explore?",
+    languages: ["English", "Portuguese", "Spanish", "Chinese", "Filipino"],
+  },
+  {
+    id: "G17SuINrv2H9FC6nvetn",
+    name: "Christopher",
+    description: "Gentle and Trustworthy",
+    sampleText: "Good day! I'm Christopher, and I'm here to provide you with reliable and thoughtful assistance. How can I help?",
+    languages: [
+      "English",
+      "Czech",
+      "German",
+      "Hindi",
+      "Polish",
+      "Greek",
+      "French",
+      "Arabic",
+      "Croatian",
+      "Romanian",
+      "Ukrainian",
+      "Hungarian",
+      "Russian",
+      "Dutch",
+      "Slovak",
+      "Tamil",
+      "Swedish",
+      "Norwegian",
+      "Danish",
+      "Spanish",
+    ],
+  },
+] as const;
+
+const CARTESIA_MODELS = [{ id: "sonic-2", name: "Sonic 2", note: "Low latency, expressive" }] as const;
+
+const CARTESIA_VOICES = [
+  { id: "0834f3df-e650-4766-a20c-5a93a43aa6e3", name: "Leo" },
+  { id: "6776173b-fd72-460d-89b3-d85812ee518d", name: "Jace" },
+  { id: "c961b81c-a935-4c17-bfb3-ba2239de8c2f", name: "Kyle" },
+  { id: "f4a3a8e4-694c-4c45-9ca0-27caf97901b5", name: "Gavin" },
+  { id: "cbaf8084-f009-4838-a096-07ee2e6612b1", name: "Maya" },
+  { id: "6ccbfb76-1fc6-48f7-b71d-91ac6298247b", name: "Tessa" },
+  { id: "cc00e582-ed66-4004-8336-0175b85c85f6", name: "Dana" },
+  { id: "26403c37-80c1-4a1a-8692-540551ca2ae5", name: "Marian" },
+] as const;
 
 function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: CallTranscriptItem[]) => void }) {
   const room = useRoomContext();
@@ -270,12 +349,55 @@ export function AgentDetailPage() {
   const [aiMessageText, setAiMessageText] = useState("");
   const [aiDelaySeconds, setAiDelaySeconds] = useState(0);
 
+  const [voiceProvider, setVoiceProvider] = useState<"cartesia" | "elevenlabs">("cartesia");
+  const [voiceModel, setVoiceModel] = useState<string>("sonic-2");
+  const [voiceId, setVoiceId] = useState<string>(CARTESIA_VOICES[0].id);
+  const [previewText, setPreviewText] = useState<string>(
+    "Hi! This is a quick voice preview from your assistant. How can I help you today?"
+  );
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
   const [panelOpen, setPanelOpen] = useState(false);
   const [session, setSession] = useState<StartResponse | null>(null);
   const [starting, setStarting] = useState(false);
   const [agentReady, setAgentReady] = useState(false);
   const transcriptRef = useRef<CallTranscriptItem[]>([]);
   const endInFlightRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  async function onPreviewVoice() {
+    setPreviewBusy(true);
+    setPreviewError(null);
+    try {
+      const blob = await previewTts({
+        provider: voiceProvider,
+        model: voiceModel,
+        voiceId,
+        text: previewText.trim() || "Hello! This is a voice preview.",
+      });
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      previewUrlRef.current = url;
+      const audio = new Audio(url);
+      audio.volume = 1;
+      await audio.play();
+    } catch (e) {
+      setPreviewError(e instanceof Error ? e.message : "Preview failed");
+      toast.error("Voice preview failed");
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -288,6 +410,17 @@ export function AgentDetailPage() {
       setAiMessageMode(a.welcome?.aiMessageMode ?? "dynamic");
       setAiMessageText(a.welcome?.aiMessageText ?? "");
       setAiDelaySeconds(a.welcome?.aiDelaySeconds ?? 0);
+
+      const vp = (a.voice?.provider as "cartesia" | "elevenlabs" | undefined) ?? "cartesia";
+      setVoiceProvider(vp);
+      if (vp === "elevenlabs") {
+        setVoiceModel(String(a.voice?.model || ELEVENLABS_MODELS[0].id));
+        setVoiceId(String(a.voice?.voiceId || ELEVENLABS_VOICES[0].id));
+        setPreviewText(ELEVENLABS_VOICES.find((v) => v.id === String(a.voice?.voiceId))?.sampleText || ELEVENLABS_VOICES[0].sampleText);
+      } else {
+        setVoiceModel(String(a.voice?.model || CARTESIA_MODELS[0].id));
+        setVoiceId(String(a.voice?.voiceId || CARTESIA_VOICES[0].id));
+      }
 
       // Best-effort analytics load for header stats
       try {
@@ -312,14 +445,18 @@ export function AgentDetailPage() {
   const isDirty = useMemo(() => {
     const saved = agent?.promptDraft ?? agent?.promptPublished ?? "";
     const savedWelcome = agent?.welcome ?? {};
+    const savedVoice = agent?.voice ?? {};
     return (
       saved !== draftPrompt ||
       (savedWelcome.mode ?? "user") !== welcomeMode ||
       (savedWelcome.aiMessageMode ?? "dynamic") !== aiMessageMode ||
       (savedWelcome.aiMessageText ?? "") !== aiMessageText ||
-      (savedWelcome.aiDelaySeconds ?? 0) !== aiDelaySeconds
+      (savedWelcome.aiDelaySeconds ?? 0) !== aiDelaySeconds ||
+      (savedVoice.provider ?? "cartesia") !== voiceProvider ||
+      (savedVoice.model ?? (voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)) !== voiceModel ||
+      (savedVoice.voiceId ?? "") !== voiceId
     );
-  }, [agent, draftPrompt, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds]);
+  }, [agent, draftPrompt, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, voiceProvider, voiceModel, voiceId]);
   const canSave = useMemo(() => draftPrompt.trim().length > 0 && isDirty && !saving, [draftPrompt, isDirty, saving]);
 
   async function onSave() {
@@ -334,6 +471,11 @@ export function AgentDetailPage() {
           aiMessageMode,
           aiMessageText,
           aiDelaySeconds,
+        },
+        voice: {
+          provider: voiceProvider,
+          model: voiceModel,
+          voiceId,
         },
       });
       setAgent(updated);
@@ -368,6 +510,10 @@ export function AgentDetailPage() {
     setAiMessageMode(agent?.welcome?.aiMessageMode ?? "dynamic");
     setAiMessageText(agent?.welcome?.aiMessageText ?? "");
     setAiDelaySeconds(agent?.welcome?.aiDelaySeconds ?? 0);
+    const vp = (agent?.voice?.provider as "cartesia" | "elevenlabs" | undefined) ?? "cartesia";
+    setVoiceProvider(vp);
+    setVoiceModel(String(agent?.voice?.model || (vp === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)));
+    setVoiceId(String(agent?.voice?.voiceId || (vp === "elevenlabs" ? ELEVENLABS_VOICES[0].id : CARTESIA_VOICES[0].id)));
   }
 
   async function onTalk() {
@@ -596,6 +742,157 @@ export function AgentDetailPage() {
                     ) : null}
                   </>
                 ) : null}
+              </div>
+            </div>
+
+            {/* Voice Configuration */}
+            <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold">Voice Configuration</div>
+                  <div className="mt-1 text-xs text-slate-400">Choose provider → model → voice, then preview.</div>
+                </div>
+                <button
+                  onClick={onPreviewVoice}
+                  disabled={previewBusy || !voiceId || !previewText.trim()}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 hover:bg-white/10 disabled:opacity-50"
+                  title="Play voice preview"
+                >
+                  <Play size={14} />
+                  {previewBusy ? "Loading…" : "Preview"}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div>
+                  <div className="mb-1 text-xs text-slate-400">Provider</div>
+                  <select
+                    value={voiceProvider}
+                    onChange={(e) => {
+                      const next = e.target.value as "cartesia" | "elevenlabs";
+                      setVoiceProvider(next);
+                      setPreviewError(null);
+                      if (next === "elevenlabs") {
+                        setVoiceModel(ELEVENLABS_MODELS[0].id);
+                        setVoiceId(ELEVENLABS_VOICES[0].id);
+                        setPreviewText(ELEVENLABS_VOICES[0].sampleText);
+                      } else {
+                        setVoiceModel(CARTESIA_MODELS[0].id);
+                        setVoiceId(CARTESIA_VOICES[0].id);
+                      }
+                    }}
+                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  >
+                    <option value="cartesia">Cartesia</option>
+                    <option value="elevenlabs">ElevenLabs</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-1 text-xs text-slate-400">Model</div>
+                  <select
+                    value={voiceModel}
+                    onChange={(e) => setVoiceModel(e.target.value)}
+                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  >
+                    {(voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS : CARTESIA_MODELS).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} — {m.note}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-1 text-xs text-slate-400">Voice</div>
+                  <select
+                    value={voiceId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      setVoiceId(nextId);
+                      setPreviewError(null);
+                      if (voiceProvider === "elevenlabs") {
+                        const v = ELEVENLABS_VOICES.find((x) => x.id === nextId);
+                        if (v) setPreviewText(v.sampleText);
+                      }
+                    }}
+                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                  >
+                    {(voiceProvider === "elevenlabs" ? ELEVENLABS_VOICES : CARTESIA_VOICES).map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                        {"description" in v ? ` — ${(v as any).description}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+                {voiceProvider === "elevenlabs" ? (
+                  (() => {
+                    const v = ELEVENLABS_VOICES.find((x) => x.id === voiceId) ?? ELEVENLABS_VOICES[0];
+                    return (
+                      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
+                        <div>
+                          <div className="text-sm font-semibold text-white">{v.name}</div>
+                          <div className="mt-1 text-xs text-slate-300">{v.description}</div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {v.languages.slice(0, 7).map((l) => (
+                              <span
+                                key={l}
+                                className="rounded-xl border border-white/10 bg-slate-950/30 px-2 py-1 text-[11px] text-slate-200"
+                              >
+                                {l}
+                              </span>
+                            ))}
+                            {v.languages.length > 7 ? (
+                              <span className="rounded-xl border border-white/10 bg-slate-950/30 px-2 py-1 text-[11px] text-slate-400">
+                                +{v.languages.length - 7} more
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-400 md:text-right">Voice ID: <span className="font-mono">{v.id}</span></div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  (() => {
+                    const v = CARTESIA_VOICES.find((x) => x.id === voiceId) ?? CARTESIA_VOICES[0];
+                    return (
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-white">{v.name}</div>
+                          <div className="mt-1 text-xs text-slate-300">Emotion-forward voice • Great for assistants</div>
+                        </div>
+                        <div className="text-xs text-slate-400">Voice ID: <span className="font-mono">{v.id}</span></div>
+                      </div>
+                    );
+                  })()
+                )}
+
+                <div className="mt-4">
+                  <div className="mb-1 text-xs text-slate-400">Preview sentence</div>
+                  <textarea
+                    value={previewText}
+                    onChange={(e) => setPreviewText(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    placeholder="Type a sentence to preview…"
+                  />
+                </div>
+
+                {previewError ? (
+                  <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-200">
+                    {previewError}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-xs text-slate-400">
+                    Tip: preview uses your server keys. Set <span className="font-mono">ELEVENLABS_API_KEY</span> /{" "}
+                    <span className="font-mono">CARTESIA_API_KEY</span> on the server to enable audio.
+                  </div>
+                )}
               </div>
             </div>
           </div>

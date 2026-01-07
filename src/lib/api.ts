@@ -11,6 +11,11 @@ export type AgentProfile = {
     aiMessageText?: string;
     aiDelaySeconds?: number;
   };
+  voice?: {
+    provider?: "elevenlabs" | "cartesia";
+    model?: string | null;
+    voiceId?: string | null;
+  };
   createdAt: number;
   publishedAt?: number | null;
   updatedAt?: number;
@@ -245,7 +250,13 @@ export async function getAgent(id: string): Promise<AgentProfile> {
 
 export async function updateAgent(
   id: string,
-  input: { name?: string; promptDraft?: string; publish?: boolean; welcome?: AgentProfile["welcome"] }
+  input: {
+    name?: string;
+    promptDraft?: string;
+    publish?: boolean;
+    welcome?: AgentProfile["welcome"];
+    voice?: AgentProfile["voice"];
+  }
 ): Promise<AgentProfile> {
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -255,6 +266,21 @@ export async function updateAgent(
   if (!res.ok) throw new Error(`updateAgent failed: ${await readError(res)}`);
   const data = (await res.json()) as { agent: AgentProfile };
   return data.agent;
+}
+
+export async function previewTts(input: {
+  provider: "elevenlabs" | "cartesia";
+  model?: string;
+  voiceId: string;
+  text: string;
+}): Promise<Blob> {
+  const res = await apiFetch(`/api/tts/preview`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`previewTts failed: ${await readError(res)}`);
+  return await res.blob();
 }
 
 export async function deleteAgent(id: string): Promise<void> {
