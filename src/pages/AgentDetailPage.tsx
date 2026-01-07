@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { ClipboardCopy, CloudUpload, Mic, MicOff, Play, Save, Undo2, Wand2 } from "lucide-react";
+import { Check, ChevronDown, ClipboardCopy, CloudUpload, Mic, MicOff, Play, Save, Search, Undo2, Wand2 } from "lucide-react";
 import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment } from "livekit-client";
 import { toast } from "sonner";
 
@@ -12,11 +12,13 @@ import {
   getAgent,
   getAgentAnalytics,
   getBillingCatalog,
+  getAgentUsageSummary,
   previewTts,
   startAgent,
   updateAgent,
   type AgentAnalytics,
   type AgentProfile,
+  type AgentUsageSummary,
   type BillingCatalog,
   type CallTranscriptItem,
   type StartResponse,
@@ -348,6 +350,7 @@ export function AgentDetailPage() {
 
   const [llmModel, setLlmModel] = useState<string>("");
   const [billingCatalog, setBillingCatalog] = useState<BillingCatalog | null>(null);
+  const [usageSummary, setUsageSummary] = useState<AgentUsageSummary | null>(null);
 
   const [welcomeMode, setWelcomeMode] = useState<"ai" | "user">("user");
   const [aiMessageMode, setAiMessageMode] = useState<"dynamic" | "custom">("dynamic");
@@ -396,6 +399,162 @@ export function AgentDetailPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!agentId) return;
+    let mounted = true;
+    getAgentUsageSummary(agentId)
+      .then((u) => {
+        if (!mounted) return;
+        setUsageSummary(u);
+      })
+      .catch(() => {
+        // non-fatal
+        if (!mounted) return;
+        setUsageSummary(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [agentId]);
+
+  function fmtMoneyPerMin(v: number | null): string {
+    if (v == null || !Number.isFinite(v)) return "—/min";
+    if (v < 0.01) return `$${v.toFixed(3)}/min`;
+    return `$${v.toFixed(2)}/min`;
+  }
+
+  function computeLlmUsdPerMin(modelId: string): number | null {
+    const rec = billingCatalog?.llmModels?.find((m) => m.id === modelId);
+    if (!rec) return null;
+    const minutes = usageSummary?.totals?.minutes ?? 0;
+    if (!Number.isFinite(minutes) || minutes <= 0) return null;
+
+    const inPerMin = (usageSummary?.totals.llmPromptTokens ?? 0) / minutes;
+    const cachedPerMin = (usageSummary?.totals.llmPromptCachedTokens ?? 0) / minutes;
+    const outPerMin = (usageSummary?.totals.llmCompletionTokens ?? 0) / minutes;
+
+    const input = rec.inputUsdPer1M == null ? null : rec.inputUsdPer1M;
+    const cached = rec.cachedInputUsdPer1M == null ? 0 : rec.cachedInputUsdPer1M;
+    const output = rec.outputUsdPer1M == null ? null : rec.outputUsdPer1M;
+    if (input == null || output == null) return null;
+
+    const cogs = (input * inPerMin + cached * cachedPerMin + output * outPerMin) / 1_000_000;
+    const m = Number(billingCatalog?.retail?.markupMultiplier ?? 1);
+    const retail = cogs * (Number.isFinite(m) && m > 0 ? m : 1);
+    return retail;
+  }
+
+  function LlmModelDropdown(props: {
+    value: string;
+    onChange: (v: string) => void;
+  }) {
+    const [open, setOpen] = useState(false);
+    const [q, setQ] = useState("");
+    const boxRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+      function onDoc(e: MouseEvent) {
+        const el = boxRef.current;
+        if (!el) return;
+        if (e.target && el.contains(e.target as Node)) return;
+        setOpen(false);
+      }
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, []);
+
+    const options = useMemo(() => {
+      const rows = (billingCatalog?.llmModels ?? []).map((m) => {
+        const usdPerMin = computeLlmUsdPerMin(m.id);
+        return { id: m.id, label: m.id.replaceAll("-", " "), usdPerMin };
+      });
+      const needle = q.trim().toLowerCase();
+      if (!needle) return rows;
+      return rows.filter((r) => r.id.toLowerCase().includes(needle) || r.label.toLowerCase().includes(needle));
+    }, [billingCatalog, q, usageSummary]);
+
+    const selectedId = props.value;
+    const selectedUsdPerMin = selectedId ? computeLlmUsdPerMin(selectedId) : null;
+
+    return (
+      <div ref={boxRef} className="relative">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-950/30"
+        >
+          <div className="min-w-0">
+            <div className="truncate font-medium">
+              {selectedId ? selectedId : "Default"}
+              <span className="ml-2 text-xs text-slate-400">{selectedId ? fmtMoneyPerMin(selectedUsdPerMin) : ""}</span>
+            </div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              {usageSummary?.totals?.minutes ? `Based on ${usageSummary.totals.minutes.toFixed(1)} mins usage` : "No usage yet (need calls to estimate $/min)"}
+            </div>
+          </div>
+          <div className="text-slate-400">
+            <ChevronDown size={18} className={open ? "rotate-180 transition" : "transition"} />
+          </div>
+        </button>
+
+        {open ? (
+          <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur-xl">
+            <div className="border-b border-white/10 p-2">
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <Search size={16} className="text-slate-400" />
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search models…"
+                  className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="max-h-[340px] overflow-auto">
+              <button
+                onClick={() => {
+                  props.onChange("");
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-slate-200 hover:bg-white/5"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium">Default</div>
+                  <div className="text-xs text-slate-500">Use server default model</div>
+                </div>
+                {selectedId === "" ? <Check size={16} className="text-brand-300" /> : null}
+              </button>
+
+              <div className="h-px bg-white/10" />
+
+              {options.length === 0 ? (
+                <div className="px-3 py-3 text-sm text-slate-400">No results</div>
+              ) : (
+                options.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      props.onChange(opt.id);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-slate-200 hover:bg-white/5"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{opt.id}</div>
+                      <div className="text-xs text-slate-500">
+                        {fmtMoneyPerMin(opt.usdPerMin)} {billingCatalog?.retail?.markupMultiplier ? `• retail` : ""}
+                      </div>
+                    </div>
+                    {selectedId === opt.id ? <Check size={16} className="text-brand-300" /> : null}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   async function onPreviewVoice() {
     setPreviewBusy(true);
@@ -756,54 +915,34 @@ export function AgentDetailPage() {
             </div>
             <div className="p-5">
               <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-                <div className="text-sm font-semibold">LLM</div>
-                <div className="mt-1 text-xs text-slate-400">Persisted per agent. Used for every call by this agent.</div>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-semibold">LLM</div>
+                    <div className="mt-1 text-xs text-slate-400">
+                      Persisted per agent. Pricing shown as <span className="text-slate-200">$/min</span> for voice UX.
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {billingCatalog?.retail?.markupMultiplier && billingCatalog.retail.markupMultiplier > 1
+                      ? `Retail markup ×${billingCatalog.retail.markupMultiplier}`
+                      : ""}
+                  </div>
+                </div>
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
                     <div className="mb-1 text-xs text-slate-400">Model</div>
-                    <select
-                      value={llmModel}
-                      onChange={(e) => setLlmModel(e.target.value)}
-                      className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                    >
-                      <option value="">Default (server)</option>
-                      {(billingCatalog?.llmModels ?? []).map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.id}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="mt-2 text-xs text-slate-500">
-                      Pricing preview comes from OpenAI’s pricing table.
-                    </div>
+                    <LlmModelDropdown value={llmModel} onChange={setLlmModel} />
                   </div>
 
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs text-slate-400">Token pricing (per 1M)</div>
-                    {(() => {
-                      if (!llmModel) return <div className="mt-2 text-sm text-slate-200">Using server default model.</div>;
-                      const rec = (billingCatalog?.llmModels ?? []).find((m) => m.id === llmModel);
-                      if (!rec) return <div className="mt-2 text-sm text-slate-200">No pricing data for this model.</div>;
-                      return (
-                        <div className="mt-3 space-y-2 text-sm">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-slate-300">Input</div>
-                            <div className="font-semibold text-white">{rec.inputUsdPer1M != null ? `$${rec.inputUsdPer1M}` : "—"}</div>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-slate-300">Cached input</div>
-                            <div className="font-semibold text-white">
-                              {rec.cachedInputUsdPer1M != null ? `$${rec.cachedInputUsdPer1M}` : "—"}
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-slate-300">Output</div>
-                            <div className="font-semibold text-white">{rec.outputUsdPer1M != null ? `$${rec.outputUsdPer1M}` : "—"}</div>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <div className="text-xs text-slate-400">Current estimate</div>
+                    <div className="mt-2 text-2xl font-semibold text-white">
+                      {llmModel ? fmtMoneyPerMin(computeLlmUsdPerMin(llmModel)) : "—"}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      Based on this agent’s historical token usage per minute. If usage changes, $/min will change.
+                    </div>
                   </div>
                 </div>
               </div>

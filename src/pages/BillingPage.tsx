@@ -221,7 +221,9 @@ export function BillingPage() {
                   </div>
                   <div>
                     <div className="text-xs text-slate-500">STT audio seconds</div>
-                    <div className="mt-1 font-semibold text-white">{billing?.usageTotals.sttAudioSeconds ?? 0}</div>
+                    <div className="mt-1 font-semibold text-white">
+                      {billing?.usageTotals.sttAudioSeconds != null ? Number(billing.usageTotals.sttAudioSeconds).toFixed(2) : "0.00"}
+                    </div>
                   </div>
                   <div>
                     <div className="text-xs text-slate-500">TTS characters</div>

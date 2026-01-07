@@ -136,7 +136,22 @@ export type BillingCatalog = {
     cachedInputUsdPer1M: number | null;
     outputUsdPer1M: number | null;
   }>;
+  retail?: { markupMultiplier?: number };
   docs?: { openaiPricing?: string };
+};
+
+export type AgentUsageSummary = {
+  agentId: string;
+  range: { from: number; to: number; tz: string };
+  totals: {
+    durationSec: number;
+    minutes: number;
+    llmPromptTokens: number;
+    llmPromptCachedTokens: number;
+    llmCompletionTokens: number;
+    sttAudioSeconds: number;
+    ttsCharacters: number;
+  };
 };
 
 export type AgentAnalytics = {
@@ -444,6 +459,12 @@ export async function getAgentAnalytics(id: string): Promise<AgentAnalytics> {
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/analytics`);
   if (!res.ok) throw new Error(`getAgentAnalytics failed: ${await readError(res)}`);
   return (await res.json()) as AgentAnalytics;
+}
+
+export async function getAgentUsageSummary(id: string): Promise<AgentUsageSummary> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/usage-summary`);
+  if (!res.ok) throw new Error(`getAgentUsageSummary failed: ${await readError(res)}`);
+  return (await res.json()) as AgentUsageSummary;
 }
 
 export async function listPhoneNumbers(_workspaceId?: string): Promise<PhoneNumber[]> {
