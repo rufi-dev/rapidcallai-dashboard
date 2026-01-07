@@ -77,6 +77,18 @@ export function CallHistoryPage() {
         const c = await getCall(selectedId);
         if (!mounted) return;
         setDetail(c);
+
+        // Only poll while an egress recording is still processing.
+        // Polling after it's ready causes detail/playback URL to refresh, which can interrupt <audio> playback.
+        const rec = (c as any)?.recording;
+        const looksLikeEgressS3 =
+          (rec && rec.kind === "egress_s3") || (rec && rec.egressId && rec.bucket && rec.key);
+        const st = looksLikeEgressS3 && typeof rec.status === "string" ? rec.status : null;
+        const shouldPoll = Boolean(looksLikeEgressS3 && st && st !== "ready" && st !== "failed");
+        if (!shouldPoll && pollRef.current) {
+          window.clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
       } catch (e) {
         toast.error(`Failed to load call: ${e instanceof Error ? e.message : "Unknown error"}`);
       } finally {
@@ -90,14 +102,11 @@ export function CallHistoryPage() {
       try {
         const c = await getCall(selectedId);
         setDetail(c);
-        if (c.recording && "kind" in c.recording && c.recording.kind === "egress_s3") {
-          if (c.recording.status === "ready" || c.recording.status === "failed") {
-            if (pollRef.current) {
-              window.clearInterval(pollRef.current);
-              pollRef.current = null;
-            }
-          }
-        } else {
+        const rec = (c as any)?.recording;
+        const looksLikeEgressS3 =
+          (rec && rec.kind === "egress_s3") || (rec && rec.egressId && rec.bucket && rec.key);
+        const st = looksLikeEgressS3 && typeof rec.status === "string" ? rec.status : null;
+        if (!looksLikeEgressS3 || st === "ready" || st === "failed") {
           if (pollRef.current) {
             window.clearInterval(pollRef.current);
             pollRef.current = null;
@@ -129,6 +138,9 @@ export function CallHistoryPage() {
         if (mounted) setPlaybackUrl(null);
         return;
       }
+
+      // Don't regenerate the playback URL if we already have one; updating <audio src> interrupts playback.
+      if (playbackUrl) return;
 
       const rec = detail.recording as any;
       const looksLikeEgressS3 =
@@ -165,7 +177,7 @@ export function CallHistoryPage() {
     return () => {
       mounted = false;
     };
-  }, [detail?.recording, selectedId]);
+  }, [detail?.recording, playbackUrl, selectedId]);
 
   return (
     <div className={panelOpen ? "grid gap-6 xl:grid-cols-[1fr_520px] items-start" : "space-y-6"}>
