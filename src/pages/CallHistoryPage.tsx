@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, Card } from "../components/ui";
 import { PhoneCall } from "lucide-react";
-import { getCall, listCalls, type CallRecord, type CallSummary } from "../lib/api";
+import { getCall, getCallRecordingUrl, listCalls, type CallRecord, type CallSummary } from "../lib/api";
 import { toast } from "sonner";
 
 function formatDuration(sec: number | null): string {
@@ -32,6 +32,8 @@ export function CallHistoryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(selectedFromUrl);
   const [detail, setDetail] = useState<CallRecord | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export function CallHistoryPage() {
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
+      setPlaybackUrl(null);
+      setPlaybackError(null);
       if (pollRef.current) {
         window.clearInterval(pollRef.current);
         pollRef.current = null;
@@ -117,12 +121,51 @@ export function CallHistoryPage() {
 
   const panelOpen = Boolean(selectedId);
 
-  const recordingUrl = useMemo(() => {
-    if (!detail?.recording) return null;
-    if (!("url" in detail.recording)) return null;
-    const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
-    return `${base}${detail.recording.url}`;
-  }, [detail?.recording]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setPlaybackError(null);
+      if (!selectedId || !detail?.recording) {
+        if (mounted) setPlaybackUrl(null);
+        return;
+      }
+
+      const rec = detail.recording as any;
+      const looksLikeEgressS3 =
+        (rec && rec.kind === "egress_s3") ||
+        (rec && rec.egressId && rec.bucket && rec.key) ||
+        (rec && typeof rec.url === "string" && /\/api\/calls\/[^/]+\/recording$/.test(rec.url));
+
+      try {
+        if (looksLikeEgressS3) {
+          const st = typeof rec.status === "string" ? rec.status : null;
+          if (st && st !== "ready") {
+            if (mounted) setPlaybackUrl(null);
+            return;
+          }
+          const r = await getCallRecordingUrl(selectedId);
+          if (mounted) setPlaybackUrl(r.url);
+          return;
+        }
+
+        // Legacy/manual upload (served from /recordings)
+        if (rec && typeof rec.url === "string" && rec.url) {
+          const base = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
+          if (mounted) setPlaybackUrl(`${base}${rec.url}`);
+          return;
+        }
+
+        if (mounted) setPlaybackUrl(null);
+      } catch (e) {
+        if (!mounted) return;
+        setPlaybackUrl(null);
+        setPlaybackError(e instanceof Error ? e.message : "Failed to load recording");
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [detail?.recording, selectedId]);
 
   return (
     <div className={panelOpen ? "grid gap-6 xl:grid-cols-[1fr_520px] items-start" : "space-y-6"}>
@@ -245,24 +288,30 @@ export function CallHistoryPage() {
                 <div className="rounded-3xl bg-black/20 p-4">
                   <div className="text-sm font-semibold">Recording</div>
                   <div className="mt-2">
-                    {detail.recording && "kind" in detail.recording && detail.recording.kind === "egress_s3" ? (
-                      detail.recording.status === "ready" && recordingUrl ? (
-                        <audio controls src={recordingUrl} className="w-full" />
-                      ) : (
+                    {playbackUrl ? <audio controls src={playbackUrl} className="w-full" /> : null}
+
+                    {!playbackUrl ? (
+                      detail.recording ? (
                         <div className="text-sm text-slate-300">
-                          Recording is <span className="text-slate-100">{detail.recording.status}</span>…
+                          {"kind" in detail.recording && detail.recording.kind === "egress_s3" ? (
+                            <>
+                              Recording is{" "}
+                              <span className="text-slate-100">{(detail.recording as any).status ?? "processing"}</span>…
+                            </>
+                          ) : (
+                            <>Recording is not playable yet.</>
+                          )}
+                          {playbackError ? <div className="mt-2 text-xs text-rose-200">{playbackError}</div> : null}
                           <div className="mt-2">
                             <Button variant="secondary" onClick={() => setSelectedId((x) => x)}>
                               Refresh
                             </Button>
                           </div>
                         </div>
+                      ) : (
+                        <div className="text-sm text-slate-300">No recording saved yet.</div>
                       )
-                    ) : recordingUrl ? (
-                      <audio controls src={recordingUrl} className="w-full" />
-                    ) : (
-                      <div className="text-sm text-slate-300">No recording saved yet.</div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
