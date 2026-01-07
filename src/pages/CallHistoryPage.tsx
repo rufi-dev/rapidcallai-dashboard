@@ -28,6 +28,8 @@ export function CallHistoryPage() {
 
   const [calls, setCalls] = useState<CallSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 30;
 
   const [selectedId, setSelectedId] = useState<string | null>(selectedFromUrl);
   const [detail, setDetail] = useState<CallRecord | null>(null);
@@ -43,6 +45,7 @@ export function CallHistoryPage() {
         const rows = await listCalls();
         if (!mounted) return;
         setCalls(rows);
+        setPage(1);
       } catch (e) {
         toast.error(`Failed to load calls: ${e instanceof Error ? e.message : "Unknown error"}`);
       } finally {
@@ -133,6 +136,11 @@ export function CallHistoryPage() {
   }, [selectedId]);
 
   const countLabel = useMemo(() => (loading ? "Loading…" : `${calls.length} calls`), [calls.length, loading]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(calls.length / PAGE_SIZE)), [calls.length]);
+  const pagedCalls = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return calls.slice(start, start + PAGE_SIZE);
+  }, [calls, page]);
 
   const panelOpen = Boolean(selectedId);
 
@@ -228,7 +236,7 @@ export function CallHistoryPage() {
                   </td>
                 </tr>
               ) : (
-                calls.map((c) => (
+                pagedCalls.map((c) => (
                   <tr
                     key={c.id}
                     className="border-b border-white/5 last:border-b-0 hover:bg-white/5 cursor-pointer"
@@ -252,6 +260,33 @@ export function CallHistoryPage() {
             </tbody>
           </table>
         </div>
+
+        {!loading && calls.length > 0 ? (
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-3 py-3 text-sm">
+            <div className="text-xs text-slate-400">
+              Page <span className="text-slate-200">{page}</span> of{" "}
+              <span className="text-slate-200">{totalPages}</span> • {PAGE_SIZE} per page
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={() => setPage(1)} disabled={page <= 1}>
+                First
+              </Button>
+              <Button variant="secondary" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+                Prev
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Next
+              </Button>
+              <Button variant="secondary" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>
+                Last
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Card>
       </div>
 

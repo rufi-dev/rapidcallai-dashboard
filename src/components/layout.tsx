@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   BookOpen,
+  CreditCard,
   Headphones,
   ChevronDown,
   LogOut,
@@ -108,22 +109,25 @@ export function AppShell() {
         {/* Fixed sidebar (hidden on agent detail) */}
         {!isAgentDetail ? (
           <aside className="fixed inset-y-0 left-0 hidden w-[280px] border-r border-white/10 bg-slate-950/40 p-4 backdrop-blur-xl lg:block">
+            <div className="flex h-full flex-col">
             <div className="px-2">
               <div className="text-xs text-slate-400">Workspace</div>
               <div className="text-base font-semibold tracking-tight text-white">{workspaceName}</div>
               <div className="mt-1 text-xs text-slate-500">Voice Studio</div>
             </div>
 
-            <div className="mt-5 space-y-1">
+            <div className="mt-5 space-y-1 flex-1">
               <NavItem to="/app/agents" icon={<Headphones size={18} />} label="Agents" />
               <NavItem to="/app/knowledge" icon={<BookOpen size={18} />} label="Knowledge Base" />
               <NavItem to="/app/phone-numbers" icon={<Phone size={18} />} label="Phone Numbers" />
               <NavItem to="/app/calls" icon={<PhoneCall size={18} />} label="Call History" />
               <NavItem to="/app/analytics" icon={<BarChart3 size={18} />} label="Analytics" />
+              <NavItem to="/app/billing" icon={<CreditCard size={18} />} label="Billing" />
               <NavItem to="/app/settings" icon={<Settings size={18} />} label="Settings" />
             </div>
 
-            <div className="mt-6 border-t border-white/10 pt-4">
+            {/* Bottom-most profile */}
+            <div className="mt-auto border-t border-white/10 pt-4">
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen((v) => !v)}
@@ -167,6 +171,7 @@ export function AppShell() {
                   </div>
                 ) : null}
               </div>
+            </div>
             </div>
           </aside>
         ) : null}
