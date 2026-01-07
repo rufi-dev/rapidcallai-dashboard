@@ -319,10 +319,23 @@ export function BillingPage() {
                 <div className="mt-1 text-sm text-slate-300">{usage?.totals?.calls != null ? `${usage.totals.calls} calls` : ""}</div>
               </Card>
               <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">Billed minutes</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {(usage?.totals as any)?.billedCallMinutes != null
+                    ? `${Number((usage?.totals as any).billedCallMinutes).toFixed(2)} mins`
+                    : usageLoading
+                      ? "Loading…"
+                      : "—"}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">After rounding/minimums</div>
+              </Card>
+              <Card className="bg-slate-950/30">
                 <div className="text-xs text-slate-400">Average cost per minute</div>
                 <div className="mt-2 text-2xl font-semibold text-white">
-                  {usage?.totals?.totalUsd != null && usage?.totals?.callMinutes
-                    ? `$${(Number(usage.totals.totalUsd) / Math.max(0.0001, Number(usage.totals.callMinutes))).toFixed(2)}`
+                  {usage?.totals?.totalUsd != null && (usage?.totals as any)?.billedCallMinutes
+                    ? `$${(Number(usage.totals.totalUsd) / Math.max(0.0001, Number((usage.totals as any).billedCallMinutes))).toFixed(2)}`
+                    : usage?.totals?.totalUsd != null && usage?.totals?.callMinutes
+                      ? `$${(Number(usage.totals.totalUsd) / Math.max(0.0001, Number(usage.totals.callMinutes))).toFixed(2)}`
                     : usageLoading
                       ? "Loading…"
                       : "—"}

@@ -221,9 +221,11 @@ export type BillingUsageResponse = {
   series: BillingUsagePoint[];
   totals: Omit<BillingUsagePoint, "t"> & {
     calls: number;
+    billedCallMinutes?: number;
     cogsBreakdownUsd?: Record<string, number>;
     retailBreakdownUsd?: Record<string, number>;
   };
+  debug?: { topLongestCalls?: Array<Record<string, unknown>> };
 };
 
 export type AgentUsageSummary = {
