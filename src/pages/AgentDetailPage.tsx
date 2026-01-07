@@ -349,6 +349,8 @@ export function AgentDetailPage() {
   const [aiMessageText, setAiMessageText] = useState("");
   const [aiDelaySeconds, setAiDelaySeconds] = useState(0);
 
+  const [activeTab, setActiveTab] = useState<"prompt" | "model" | "voice" | "transcriber" | "tools">("prompt");
+
   const [voiceProvider, setVoiceProvider] = useState<"cartesia" | "elevenlabs">("cartesia");
   const [voiceModel, setVoiceModel] = useState<string>("sonic-2");
   const [voiceId, setVoiceId] = useState<string>(CARTESIA_VOICES[0].id);
@@ -661,6 +663,36 @@ export function AgentDetailPage() {
       ) : null}
 
       <div className="space-y-6">
+        {/* Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              { id: "prompt", label: "Prompt" },
+              { id: "model", label: "Model" },
+              { id: "voice", label: "Voice" },
+              { id: "transcriber", label: "Transcriber" },
+              { id: "tools", label: "Tools" },
+            ] as const
+          ).map((t) => {
+            const on = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={[
+                  "rounded-2xl px-4 py-2 text-sm transition",
+                  "border border-white/10",
+                  on ? "bg-brand-500/15 text-brand-100 shadow-glow" : "bg-white/5 text-slate-200 hover:bg-white/10",
+                ].join(" ")}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Prompt */}
+        {activeTab === "prompt" ? (
         <Card className="p-0">
           <div className="border-b border-white/10 p-5">
             <div className="flex items-center justify-between gap-4">
@@ -682,75 +714,99 @@ export function AgentDetailPage() {
             <div className="mt-2 text-xs text-slate-400">
               {isDirty ? "Unsaved changes" : "Saved"} • Prompt required to start a session
             </div>
+          </div>
+        </Card>
+        ) : null}
 
-            {/* Welcome Message moved to bottom of prompt */}
-            <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-              <div className="text-sm font-semibold">Welcome Message</div>
-              <div className="mt-1 text-xs text-slate-400">Controls how the session starts</div>
-
-              <div className="mt-4 space-y-3">
+        {/* Model */}
+        {activeTab === "model" ? (
+          <Card className="p-0">
+            <div className="border-b border-white/10 p-5">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="mb-1 text-xs text-slate-400">Start mode</div>
-                  <select
-                    value={welcomeMode}
-                    onChange={(e) => setWelcomeMode(e.target.value as "ai" | "user")}
-                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                  >
-                    <option value="ai">AI speaks first</option>
-                    <option value="user">User speaks first</option>
-                  </select>
+                  <div className="text-lg font-semibold">Model</div>
+                  <div className="text-sm text-slate-300">Session behavior and defaults.</div>
                 </div>
-
-                {welcomeMode === "ai" ? (
-                  <>
-                    <div>
-                      <div className="mb-1 text-xs text-slate-400">Message type</div>
-                      <select
-                        value={aiMessageMode}
-                        onChange={(e) => setAiMessageMode(e.target.value as "dynamic" | "custom")}
-                        className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                      >
-                        <option value="dynamic">Dynamic (from prompt)</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <div className="mb-1 text-xs text-slate-400">Pause before speaking (seconds)</div>
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        step={0.5}
-                        value={aiDelaySeconds}
-                        onChange={(e) => setAiDelaySeconds(Number(e.target.value))}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                      />
-                    </div>
-
-                    {aiMessageMode === "custom" ? (
-                      <div>
-                        <div className="mb-1 text-xs text-slate-400">Custom welcome message</div>
-                        <Textarea
-                          value={aiMessageText}
-                          onChange={setAiMessageText}
-                          rows={3}
-                          placeholder="Hi! How can I help today?"
-                          className="scrollbar-brand"
-                        />
-                      </div>
-                    ) : null}
-                  </>
-                ) : null}
+                <div className="text-xs text-slate-400">Configuration</div>
               </div>
             </div>
+            <div className="p-5">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+                <div className="text-sm font-semibold">Welcome Message</div>
+                <div className="mt-1 text-xs text-slate-400">Controls how the session starts</div>
 
-            {/* Voice Configuration */}
-            <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/30 p-4">
-              <div className="flex items-center justify-between">
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Start mode</div>
+                    <select
+                      value={welcomeMode}
+                      onChange={(e) => setWelcomeMode(e.target.value as "ai" | "user")}
+                      className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    >
+                      <option value="ai">AI speaks first</option>
+                      <option value="user">User speaks first</option>
+                    </select>
+                  </div>
+
+                  {welcomeMode === "ai" ? (
+                    <>
+                      <div>
+                        <div className="mb-1 text-xs text-slate-400">Message type</div>
+                        <select
+                          value={aiMessageMode}
+                          onChange={(e) => setAiMessageMode(e.target.value as "dynamic" | "custom")}
+                          className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                        >
+                          <option value="dynamic">Dynamic (from prompt)</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-xs text-slate-400">Pause before speaking (seconds)</div>
+                        <input
+                          type="number"
+                          min={0}
+                          max={10}
+                          step={0.5}
+                          value={aiDelaySeconds}
+                          onChange={(e) => setAiDelaySeconds(Number(e.target.value))}
+                          className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                        />
+                      </div>
+
+                      {aiMessageMode === "custom" ? (
+                        <div>
+                          <div className="mb-1 text-xs text-slate-400">Custom welcome message</div>
+                          <Textarea
+                            value={aiMessageText}
+                            onChange={setAiMessageText}
+                            rows={3}
+                            placeholder="Hi! How can I help today?"
+                            className="scrollbar-brand"
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                Model settings (LLM/STT/TTS) tabs can be added here later.
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {/* Voice */}
+        {activeTab === "voice" ? (
+          <Card className="p-0">
+            <div className="border-b border-white/10 p-5">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="text-sm font-semibold">Voice Configuration</div>
-                  <div className="mt-1 text-xs text-slate-400">Choose provider → model → voice, then preview.</div>
+                  <div className="text-lg font-semibold">Voice</div>
+                  <div className="text-sm text-slate-300">Choose provider, model, and voice. Preview before saving.</div>
                 </div>
                 <button
                   onClick={onPreviewVoice}
@@ -762,141 +818,180 @@ export function AgentDetailPage() {
                   {previewBusy ? "Loading…" : "Preview"}
                 </button>
               </div>
+            </div>
+            <div className="p-5">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+                <div className="mt-1 text-xs text-slate-400">Provider → model → voice</div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div>
-                  <div className="mb-1 text-xs text-slate-400">Provider</div>
-                  <select
-                    value={voiceProvider}
-                    onChange={(e) => {
-                      const next = e.target.value as "cartesia" | "elevenlabs";
-                      setVoiceProvider(next);
-                      setPreviewError(null);
-                      if (next === "elevenlabs") {
-                        setVoiceModel(ELEVENLABS_MODELS[0].id);
-                        setVoiceId(ELEVENLABS_VOICES[0].id);
-                        setPreviewText(ELEVENLABS_VOICES[0].sampleText);
-                      } else {
-                        setVoiceModel(CARTESIA_MODELS[0].id);
-                        setVoiceId(CARTESIA_VOICES[0].id);
-                      }
-                    }}
-                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                  >
-                    <option value="cartesia">Cartesia</option>
-                    <option value="elevenlabs">ElevenLabs</option>
-                  </select>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Provider</div>
+                    <select
+                      value={voiceProvider}
+                      onChange={(e) => {
+                        const next = e.target.value as "cartesia" | "elevenlabs";
+                        setVoiceProvider(next);
+                        setPreviewError(null);
+                        if (next === "elevenlabs") {
+                          setVoiceModel(ELEVENLABS_MODELS[0].id);
+                          setVoiceId(ELEVENLABS_VOICES[0].id);
+                          setPreviewText(ELEVENLABS_VOICES[0].sampleText);
+                        } else {
+                          setVoiceModel(CARTESIA_MODELS[0].id);
+                          setVoiceId(CARTESIA_VOICES[0].id);
+                        }
+                      }}
+                      className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    >
+                      <option value="cartesia">Cartesia</option>
+                      <option value="elevenlabs">ElevenLabs</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Model</div>
+                    <select
+                      value={voiceModel}
+                      onChange={(e) => setVoiceModel(e.target.value)}
+                      className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    >
+                      {(voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS : CARTESIA_MODELS).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} — {m.note}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Voice</div>
+                    <select
+                      value={voiceId}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        setVoiceId(nextId);
+                        setPreviewError(null);
+                        if (voiceProvider === "elevenlabs") {
+                          const v = ELEVENLABS_VOICES.find((x) => x.id === nextId);
+                          if (v) setPreviewText(v.sampleText);
+                        }
+                      }}
+                      className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    >
+                      {(voiceProvider === "elevenlabs" ? ELEVENLABS_VOICES : CARTESIA_VOICES).map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name}
+                          {"description" in v ? ` — ${(v as any).description}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <div className="mb-1 text-xs text-slate-400">Model</div>
-                  <select
-                    value={voiceModel}
-                    onChange={(e) => setVoiceModel(e.target.value)}
-                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                  >
-                    {(voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS : CARTESIA_MODELS).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} — {m.note}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <div className="mb-1 text-xs text-slate-400">Voice</div>
-                  <select
-                    value={voiceId}
-                    onChange={(e) => {
-                      const nextId = e.target.value;
-                      setVoiceId(nextId);
-                      setPreviewError(null);
-                      if (voiceProvider === "elevenlabs") {
-                        const v = ELEVENLABS_VOICES.find((x) => x.id === nextId);
-                        if (v) setPreviewText(v.sampleText);
-                      }
-                    }}
-                    className="select-brand w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                  >
-                    {(voiceProvider === "elevenlabs" ? ELEVENLABS_VOICES : CARTESIA_VOICES).map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                        {"description" in v ? ` — ${(v as any).description}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-                {voiceProvider === "elevenlabs" ? (
-                  (() => {
-                    const v = ELEVENLABS_VOICES.find((x) => x.id === voiceId) ?? ELEVENLABS_VOICES[0];
-                    return (
-                      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
-                        <div>
-                          <div className="text-sm font-semibold text-white">{v.name}</div>
-                          <div className="mt-1 text-xs text-slate-300">{v.description}</div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {v.languages.slice(0, 7).map((l) => (
-                              <span
-                                key={l}
-                                className="rounded-xl border border-white/10 bg-slate-950/30 px-2 py-1 text-[11px] text-slate-200"
-                              >
-                                {l}
-                              </span>
-                            ))}
-                            {v.languages.length > 7 ? (
-                              <span className="rounded-xl border border-white/10 bg-slate-950/30 px-2 py-1 text-[11px] text-slate-400">
-                                +{v.languages.length - 7} more
-                              </span>
-                            ) : null}
+                <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+                  {voiceProvider === "elevenlabs" ? (
+                    (() => {
+                      const v = ELEVENLABS_VOICES.find((x) => x.id === voiceId) ?? ELEVENLABS_VOICES[0];
+                      return (
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
+                          <div>
+                            <div className="text-sm font-semibold text-white">{v.name}</div>
+                            <div className="mt-1 text-xs text-slate-300">{v.description}</div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {v.languages.slice(0, 7).map((l) => (
+                                <span
+                                  key={l}
+                                  className="rounded-xl border border-white/10 bg-slate-950/30 px-2 py-1 text-[11px] text-slate-200"
+                                >
+                                  {l}
+                                </span>
+                              ))}
+                              {v.languages.length > 7 ? (
+                                <span className="rounded-xl border border-white/10 bg-slate-950/30 px-2 py-1 text-[11px] text-slate-400">
+                                  +{v.languages.length - 7} more
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="text-xs text-slate-400 md:text-right">
+                            Voice ID: <span className="font-mono">{v.id}</span>
                           </div>
                         </div>
-                        <div className="text-xs text-slate-400 md:text-right">Voice ID: <span className="font-mono">{v.id}</span></div>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  (() => {
-                    const v = CARTESIA_VOICES.find((x) => x.id === voiceId) ?? CARTESIA_VOICES[0];
-                    return (
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-white">{v.name}</div>
-                          <div className="mt-1 text-xs text-slate-300">Emotion-forward voice • Great for assistants</div>
+                      );
+                    })()
+                  ) : (
+                    (() => {
+                      const v = CARTESIA_VOICES.find((x) => x.id === voiceId) ?? CARTESIA_VOICES[0];
+                      return (
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-white">{v.name}</div>
+                            <div className="mt-1 text-xs text-slate-300">Emotion-forward voice • Great for assistants</div>
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            Voice ID: <span className="font-mono">{v.id}</span>
+                          </div>
                         </div>
-                        <div className="text-xs text-slate-400">Voice ID: <span className="font-mono">{v.id}</span></div>
-                      </div>
-                    );
-                  })()
-                )}
+                      );
+                    })()
+                  )}
 
-                <div className="mt-4">
-                  <div className="mb-1 text-xs text-slate-400">Preview sentence</div>
-                  <textarea
-                    value={previewText}
-                    onChange={(e) => setPreviewText(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                    placeholder="Type a sentence to preview…"
-                  />
+                  <div className="mt-4">
+                    <div className="mb-1 text-xs text-slate-400">Preview sentence</div>
+                    <textarea
+                      value={previewText}
+                      onChange={(e) => setPreviewText(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                      placeholder="Type a sentence to preview…"
+                    />
+                  </div>
+
+                  {previewError ? (
+                    <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-200">
+                      {previewError}
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-xs text-slate-400">
+                      Tip: preview uses your server keys. Set <span className="font-mono">ELEVENLABS_API_KEY</span> /{" "}
+                      <span className="font-mono">CARTESIA_API_KEY</span> on the server to enable audio.
+                    </div>
+                  )}
                 </div>
-
-                {previewError ? (
-                  <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-200">
-                    {previewError}
-                  </div>
-                ) : (
-                  <div className="mt-3 text-xs text-slate-400">
-                    Tip: preview uses your server keys. Set <span className="font-mono">ELEVENLABS_API_KEY</span> /{" "}
-                    <span className="font-mono">CARTESIA_API_KEY</span> on the server to enable audio.
-                  </div>
-                )}
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        ) : null}
+
+        {/* Transcriber */}
+        {activeTab === "transcriber" ? (
+          <Card className="p-0">
+            <div className="border-b border-white/10 p-5">
+              <div className="text-lg font-semibold">Transcriber</div>
+              <div className="mt-1 text-sm text-slate-300">Configure STT settings (coming soon).</div>
+            </div>
+            <div className="p-5">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                Placeholder tab — we can add Deepgram/LiveKit STT selection here next.
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {/* Tools */}
+        {activeTab === "tools" ? (
+          <Card className="p-0">
+            <div className="border-b border-white/10 p-5">
+              <div className="text-lg font-semibold">Tools</div>
+              <div className="mt-1 text-sm text-slate-300">Manage function tools (coming soon).</div>
+            </div>
+            <div className="p-5">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                Placeholder tab — we can add tool toggles + descriptions here.
+              </div>
+            </div>
+          </Card>
+        ) : null}
       </div>
 
       {panelOpen ? (
