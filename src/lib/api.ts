@@ -289,6 +289,37 @@ export async function previewTts(input: {
   return await res.blob();
 }
 
+export async function generateAgentPrompt(input: {
+  templateId: string;
+  agentName?: string;
+  businessName?: string;
+  industry?: string;
+  location?: string;
+  timezone?: string;
+  languages?: string;
+  primaryGoal?: string;
+  targetCustomer?: string;
+  tone?: string;
+  greetingStyle?: string;
+  offerings?: string;
+  hours?: string;
+  bookingLink?: string;
+  requiredFields?: string;
+  faqs?: string;
+  disallowed?: string;
+  escalation?: string;
+  policies?: string;
+  extra?: string;
+}): Promise<{ promptDraft: string }> {
+  const res = await apiFetch(`/api/agents/generate-prompt`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`generateAgentPrompt failed: ${await readError(res)}`);
+  return (await res.json()) as { promptDraft: string };
+}
+
 export async function deleteAgent(id: string): Promise<void> {
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`deleteAgent failed: ${await readError(res)}`);

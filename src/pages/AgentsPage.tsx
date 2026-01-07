@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { createAgent, deleteAgent, listAgents, type AgentProfile } from "../lib/api";
+import { createAgent, deleteAgent, generateAgentPrompt, listAgents, type AgentProfile } from "../lib/api";
 import { Button, Card, Input, Textarea } from "../components/ui";
 import { toast } from "sonner";
 import { Drawer } from "../components/Drawer";
@@ -176,6 +176,8 @@ export function AgentsPage() {
   const [genOpen, setGenOpen] = useState(false);
   const [genStep, setGenStep] = useState<1 | 2 | 3>(1);
   const [genBusy, setGenBusy] = useState(false);
+  const [genAiBusy, setGenAiBusy] = useState(false);
+  const [genAiError, setGenAiError] = useState<string | null>(null);
   const [gen, setGen] = useState<GeneratorState>(() => ({
     templateId: "appointment",
     agentName: "",
@@ -239,10 +241,48 @@ export function AgentsPage() {
   function openGenerator() {
     setGenOpen(true);
     setGenStep(1);
+    setGenAiError(null);
+    setGenAiBusy(false);
     const initialName = name.trim() || "";
     const g = { ...gen, agentName: gen.agentName || initialName };
     setGen(g);
     setGeneratedPrompt(buildPrompt(g));
+  }
+
+  async function runAiGenerate(next: GeneratorState) {
+    setGenAiBusy(true);
+    setGenAiError(null);
+    try {
+      const r = await generateAgentPrompt({
+        templateId: next.templateId,
+        agentName: next.agentName,
+        businessName: next.businessName,
+        industry: next.industry,
+        location: next.location,
+        timezone: next.timezone,
+        languages: next.languages,
+        primaryGoal: next.primaryGoal,
+        targetCustomer: next.targetCustomer,
+        tone: next.tone,
+        greetingStyle: next.greetingStyle,
+        offerings: next.offerings,
+        hours: next.hours,
+        bookingLink: next.bookingLink,
+        requiredFields: next.requiredFields,
+        faqs: next.faqs,
+        disallowed: next.disallowed,
+        escalation: next.escalation,
+        policies: next.policies,
+        extra: next.extra,
+      });
+      setGeneratedPrompt(r.promptDraft);
+    } catch (e) {
+      setGenAiError(e instanceof Error ? e.message : "Generation failed");
+      // fallback to local template builder (still useful)
+      setGeneratedPrompt(buildPrompt(next));
+    } finally {
+      setGenAiBusy(false);
+    }
   }
 
   async function createFromGenerator() {
@@ -334,24 +374,21 @@ export function AgentsPage() {
                 Back
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (genStep === 1) {
                     setGenStep(2);
-                    const nextPrompt = buildPrompt(gen);
-                    setGeneratedPrompt(nextPrompt);
                     return;
                   }
                   if (genStep === 2) {
-                    const nextPrompt = buildPrompt(gen);
-                    setGeneratedPrompt(nextPrompt);
+                    await runAiGenerate(gen);
                     setGenStep(3);
                     return;
                   }
                 }}
                 className="rounded-xl bg-indigo-500/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                disabled={genStep === 3}
+                disabled={genStep === 3 || genAiBusy}
               >
-                Next
+                {genAiBusy && genStep === 2 ? "Generating…" : "Next"}
               </button>
             </div>
           </div>
@@ -549,6 +586,23 @@ export function AgentsPage() {
                 <div className="mt-2 text-xs text-slate-400">
                   You can edit this before creating the agent. After creation, you can refine it in the Prompt tab.
                 </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <div className="text-xs text-slate-400">
+                    {genAiError ? "AI unavailable — using fallback prompt." : "AI-generated prompt ready."}
+                  </div>
+                  <button
+                    onClick={() => runAiGenerate(gen)}
+                    disabled={genAiBusy}
+                    className="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 disabled:opacity-50"
+                  >
+                    {genAiBusy ? "Regenerating…" : "Regenerate"}
+                  </button>
+                </div>
+                {genAiError ? (
+                  <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-200">
+                    {genAiError}
+                  </div>
+                ) : null}
                 <div className="mt-4">
                   <Textarea
                     value={generatedPrompt}
