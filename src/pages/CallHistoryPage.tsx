@@ -58,6 +58,12 @@ export function CallHistoryPage() {
     setSelectedId(selectedFromUrl);
   }, [selectedFromUrl]);
 
+  // IMPORTANT: reset playback URL when switching calls; otherwise we reuse the previous call's audio src.
+  useEffect(() => {
+    setPlaybackUrl(null);
+    setPlaybackError(null);
+  }, [selectedId]);
+
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
