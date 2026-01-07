@@ -43,9 +43,16 @@ export function CallDetailPage() {
 
     // Audio elements can't send Authorization headers; fetch a playback-ready URL.
     try {
-      if ("kind" in c.recording && c.recording.kind === "egress_s3") {
-        setRecordingStatus(c.recording.status);
-        if (c.recording.status !== "ready") {
+      const rec = c.recording as any;
+      const looksLikeEgressS3 =
+        (rec && rec.kind === "egress_s3") ||
+        (rec && rec.egressId && rec.bucket && rec.key) ||
+        (rec && typeof rec.url === "string" && /\/api\/calls\/[^/]+\/recording$/.test(rec.url));
+
+      if (looksLikeEgressS3) {
+        const st = typeof rec.status === "string" ? rec.status : null;
+        setRecordingStatus(st);
+        if (st && st !== "ready") {
           setPlaybackUrl(null);
           return;
         }
