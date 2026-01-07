@@ -205,6 +205,7 @@ export function CallHistoryPage() {
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-slate-400">
               <tr className="border-b border-white/10">
+                <th className="px-3 py-3 font-medium">Time</th>
                 <th className="px-3 py-3 font-medium">Call</th>
                 <th className="px-3 py-3 font-medium">Agent</th>
                 <th className="px-3 py-3 font-medium">To</th>
@@ -216,13 +217,13 @@ export function CallHistoryPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
+                  <td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-300">
                     Loading…
                   </td>
                 </tr>
               ) : calls.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
+                  <td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-300">
                     No calls yet. Start a Talk session and you’ll see it here.
                   </td>
                 </tr>
@@ -234,6 +235,7 @@ export function CallHistoryPage() {
                     onClick={() => nav(`/app/calls/${encodeURIComponent(c.id)}`)}
                     title="Open call"
                   >
+                    <td className="px-3 py-3 text-xs text-slate-400">{fmtTs(c.startedAt ?? null)}</td>
                     <td className="px-3 py-3 font-mono text-xs text-slate-300">{c.id}</td>
                     <td className="px-3 py-3 text-slate-100">{c.agentName}</td>
                     <td className="px-3 py-3 text-slate-300">{c.to || "—"}</td>

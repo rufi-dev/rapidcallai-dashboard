@@ -4,10 +4,12 @@ import {
   BarChart3,
   BookOpen,
   Headphones,
+  ChevronDown,
   LogOut,
   Phone,
   PhoneCall,
   Settings,
+  User as UserIcon,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
 import { getMe, logout } from "../lib/api";
@@ -79,6 +81,9 @@ export function AppShell() {
   const location = useLocation();
   const isAgentDetail = /^\/app\/agents\/[^/]+/.test(location.pathname);
   const [workspaceName, setWorkspaceName] = useState<string>("Workspace");
+  const [userName, setUserName] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -86,6 +91,8 @@ export function AppShell() {
       .then((m) => {
         if (!mounted) return;
         setWorkspaceName(m.workspace?.name || "Workspace");
+        setUserName(m.user?.name || "");
+        setUserEmail(m.user?.email || "");
       })
       .catch(() => {
         // ignore; RequireAuth handles redirects
@@ -117,24 +124,49 @@ export function AppShell() {
             </div>
 
             <div className="mt-6 border-t border-white/10 pt-4">
-              <button
-                onClick={async () => {
-                  try {
-                    await logout();
-                  } catch {
-                    // ignore
-                  } finally {
-                    signOut();
-                    nav("/login");
-                  }
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white"
-              >
-                <div className="text-slate-400">
-                  <LogOut size={18} />
-                </div>
-                <div className="font-medium">Log out</div>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setProfileOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/10"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-2xl border border-white/10 bg-slate-950/40 flex items-center justify-center text-brand-200 shadow-glow">
+                      <UserIcon size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-white">{userName || "Profile"}</div>
+                      <div className="truncate text-xs text-slate-400">{userEmail || "Signed in"}</div>
+                    </div>
+                  </div>
+                  <div className="text-slate-400">
+                    <ChevronDown size={18} />
+                  </div>
+                </button>
+
+                {profileOpen ? (
+                  <div className="absolute bottom-[52px] left-0 w-full rounded-2xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl backdrop-blur-xl">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await logout();
+                        } catch {
+                          // ignore
+                        } finally {
+                          setProfileOpen(false);
+                          signOut();
+                          nav("/login");
+                        }
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-200 hover:bg-white/10"
+                    >
+                      <div className="text-slate-400">
+                        <LogOut size={18} />
+                      </div>
+                      <div className="font-medium">Logout</div>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </aside>
         ) : null}
