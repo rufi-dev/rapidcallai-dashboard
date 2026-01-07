@@ -230,7 +230,13 @@ export async function listAgents(): Promise<AgentProfile[]> {
   return data.agents;
 }
 
-export async function createAgent(input: { name: string; prompt: string }): Promise<AgentProfile> {
+export async function createAgent(input: {
+  name: string;
+  promptDraft?: string;
+  promptPublished?: string;
+  welcome?: AgentProfile["welcome"];
+  voice?: AgentProfile["voice"];
+}): Promise<AgentProfile> {
   const res = await apiFetch(`/api/agents`, {
     method: "POST",
     headers: { "content-type": "application/json" },
