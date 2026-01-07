@@ -96,7 +96,7 @@ function StatsSpotlight() {
             <div className="text-xs text-slate-300 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">Filter-ready</div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden flex-1 min-h-0">
+          <div className="mt-4 h-[150px] rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden">
             <div className="h-full w-full grid items-end grid-cols-7 gap-2">
               {series.map((v, i) => (
                 <div key={i} className="w-full flex flex-col items-center justify-end gap-2">
@@ -149,8 +149,8 @@ function AuthLayout(props: {
       <div className="pointer-events-none fixed inset-0 auth-bg-lux" />
       <div className="pointer-events-none fixed inset-0 auth-noise" />
 
-      <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:px-10 lg:py-0 flex items-center justify-center">
-        <div className="grid w-full items-stretch gap-8 lg:grid-cols-[360px_520px_620px]">
+      <div className="mx-auto h-full w-full max-w-[1560px] px-4 py-10 lg:px-10 lg:py-0 flex items-center justify-center">
+        <div className="grid w-fit max-w-full items-stretch gap-8 lg:grid-cols-[minmax(320px,360px)_minmax(420px,520px)_minmax(520px,620px)]">
           {/* Left: visual quickstart (replaces the big hero text) */}
           <div className="hidden lg:block auth-enter">
             <div className="auth-card auth-panel overflow-hidden">
