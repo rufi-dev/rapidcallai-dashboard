@@ -1,6 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, BarChart3, Headphones, Lock, Mail, PhoneCall, Sparkles, User as UserIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Headphones,
+  Lock,
+  Mail,
+  PhoneCall,
+  Sparkles,
+  User as UserIcon,
+} from "lucide-react";
 import { setToken } from "../lib/auth";
 import { login, register } from "../lib/api";
 
@@ -9,6 +19,51 @@ const QUICKSTART = [
   { title: "Run a web test", desc: "Talk and iterate instantly.", icon: <PhoneCall size={16} /> },
   { title: "Measure outcomes", desc: "Use analytics + recordings.", icon: <BarChart3 size={16} /> },
 ] as const;
+
+function friendlyAuthError(kind: "login" | "register", e: unknown): string {
+  let msg = e instanceof Error ? e.message : "Something went wrong";
+  msg = msg.replace(/^(login|register)\s+failed:\s*/i, "").trim();
+
+  // If server returned JSON (as text), pull out the "error" field.
+  if (msg.startsWith("{") && msg.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(msg) as unknown;
+      if (parsed && typeof parsed === "object" && "error" in (parsed as any) && typeof (parsed as any).error === "string") {
+        msg = String((parsed as any).error).trim();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Human-friendly mapping for common auth failures.
+  if (/invalid email or password/i.test(msg)) return "Email or password is incorrect. Please try again.";
+  if (/missing authorization/i.test(msg)) return "Your session is missing. Please sign in again.";
+  if (/email already registered/i.test(msg)) return "That email is already registered. Try signing in instead.";
+  if (/validation failed/i.test(msg)) {
+    return kind === "register"
+      ? "Please check your details and try again."
+      : "Please check your email and password and try again.";
+  }
+
+  return msg || "Something went wrong. Please try again.";
+}
+
+function AuthErrorBanner(props: { title: string; message: string }) {
+  return (
+    <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-100">
+      <div className="flex gap-2">
+        <div className="mt-0.5 text-rose-200">
+          <AlertTriangle size={16} />
+        </div>
+        <div className="min-w-0">
+          <div className="font-semibold">{props.title}</div>
+          <div className="mt-0.5 text-rose-100/90">{props.message}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Field(props: {
   label: string;
@@ -348,7 +403,7 @@ export function LoginPage() {
               setToken(out.token);
               nav("/app/agents");
             } catch (e) {
-              setErr(e instanceof Error ? e.message : "Login failed");
+              setErr(friendlyAuthError("login", e));
             } finally {
               setBusy(false);
             }
@@ -357,7 +412,7 @@ export function LoginPage() {
         >
           {busy ? "Signing in…" : "Sign in"} <ArrowRight size={16} />
         </button>
-        {err ? <div className="text-sm text-red-300">{err}</div> : null}
+        {err ? <AuthErrorBanner title="Couldn’t sign in" message={err} /> : null}
       </div>
     </AuthLayout>
   );
@@ -408,7 +463,7 @@ export function RegisterPage() {
               setToken(out.token);
               nav("/app/agents", { state: { from: location.pathname } });
             } catch (e) {
-              setErr(e instanceof Error ? e.message : "Register failed");
+              setErr(friendlyAuthError("register", e));
             } finally {
               setBusy(false);
             }
@@ -417,7 +472,7 @@ export function RegisterPage() {
         >
           {busy ? "Creating…" : "Create & continue"} <ArrowRight size={16} />
         </button>
-        {err ? <div className="text-sm text-red-300">{err}</div> : null}
+        {err ? <AuthErrorBanner title="Couldn’t create account" message={err} /> : null}
 
         <div className="mt-1 rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-xs text-slate-300">
           By continuing, you agree to keep your workspace secure and not share your login credentials.
