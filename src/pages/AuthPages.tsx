@@ -1,8 +1,75 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, Lock, Mail, Sparkles, User as UserIcon } from "lucide-react";
+import { ArrowRight, Check, Lock, Mail, Sparkles, User as UserIcon } from "lucide-react";
 import { setToken } from "../lib/auth";
 import { login, register } from "../lib/api";
+
+type Review = {
+  name: string;
+  title: string;
+  quote: string;
+  avatarSeed: string;
+};
+
+const REVIEWS: Review[] = [
+  {
+    name: "Maya Chen",
+    title: "Ops Lead • Support",
+    avatarSeed: "maya",
+    quote:
+      "The UI is genuinely calm and fast. We review calls, share a link internally, and fix the prompt in minutes. It feels like a product you can trust in production.",
+  },
+  {
+    name: "Omar K.",
+    title: "Founder • Voice SaaS",
+    avatarSeed: "omar",
+    quote:
+      "Recordings + transcripts changed everything. Instead of debating what happened, we just open the call and see it. The dashboard looks premium without getting in the way.",
+  },
+  {
+    name: "Lina R.",
+    title: "Engineer • Realtime",
+    avatarSeed: "lina",
+    quote:
+      "It’s rare to get something this clean. You can iterate prompts, test on web, then validate in analytics. The whole loop is tight, which keeps shipping momentum high.",
+  },
+];
+
+const BULLETS = [
+  "Web + telephony in one place",
+  "Playback-ready recordings with seeking",
+  "Clean role-based transcripts",
+  "Analytics with date filtering",
+];
+
+function avatarDataUri(seed: string) {
+  const s = String(seed || "user");
+  const hue = Math.abs(
+    s.split("").reduce((acc, ch) => {
+      return (acc * 33 + ch.charCodeAt(0)) % 360;
+    }, 11)
+  );
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="hsl(${hue} 78% 58%)"/>
+      <stop offset="1" stop-color="hsl(${(hue + 32) % 360} 82% 54%)"/>
+    </linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.1"/>
+    </filter>
+  </defs>
+  <rect width="96" height="96" rx="22" fill="url(#g)"/>
+  <path d="M12 26c10-11 22-16 36-16s26 5 36 16" stroke="rgba(255,255,255,0.22)" stroke-width="14" filter="url(#s)" fill="none" stroke-linecap="round"/>
+  <circle cx="48" cy="42" r="17" fill="rgba(255,255,255,0.92)"/>
+  <path d="M20 88c5-19 20-29 28-29s23 10 28 29" fill="rgba(255,255,255,0.92)"/>
+  <circle cx="39" cy="41" r="2.2" fill="rgba(2,6,23,0.7)"/>
+  <circle cx="57" cy="41" r="2.2" fill="rgba(2,6,23,0.7)"/>
+  <path d="M42 49c4 4 8 4 12 0" stroke="rgba(2,6,23,0.5)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
+}
 
 function Field(props: {
   label: string;
@@ -37,146 +104,133 @@ function Field(props: {
   );
 }
 
-type Testimonial = {
-  name: string;
-  title: string;
-  quote: string;
-  avatarSeed: string;
-};
+function ReviewCrossfade() {
+  const [idx, setIdx] = useState(0);
 
-const TESTIMONIALS: Testimonial[] = [
-  {
-    name: "A. Founder",
-    title: "Voice SaaS",
-    avatarSeed: "alex",
-    quote:
-      "We went from idea to production in days. The call history + recordings made debugging effortless. I can actually show my team what happened instead of guessing.",
-  },
-  {
-    name: "S. Ops Lead",
-    title: "Customer Support",
-    avatarSeed: "sara",
-    quote:
-      "The dashboard feels fast, clean, and actually usable. The transcript + analytics combo is gold. We finally have one source of truth when something goes wrong.",
-  },
-  {
-    name: "M. Engineer",
-    title: "AI Platform",
-    avatarSeed: "mike",
-    quote:
-      "Ship agents, iterate prompts, and keep control. Everything is organized exactly where I expect it. I can tweak prompts and verify results in one loop.",
-  },
-  {
-    name: "D. PM",
-    title: "Growth Team",
-    avatarSeed: "dina",
-    quote:
-      "The UX is clean enough that non-technical teammates can run tests and review calls without help. It feels premium but still practical for day‑to‑day work.",
-  },
-  {
-    name: "K. Builder",
-    title: "Indie Hacker",
-    avatarSeed: "kai",
-    quote:
-      "Prompt iteration is fast, and the recordings + transcripts give instant feedback on what to fix. I spend less time debugging and more time shipping improvements.",
-  },
-  {
-    name: "R. Support",
-    title: "Operations",
-    avatarSeed: "rina",
-    quote:
-      "Having one place for phone + web sessions is huge. We finally stopped switching tools all day. It made handoffs between support and engineering so much smoother.",
-  },
-  {
-    name: "T. Engineer",
-    title: "Realtime Systems",
-    avatarSeed: "tom",
-    quote:
-      "The product feels snappy. Latency improvements are visible in analytics and confirmed in recordings. When we tune something, we can actually measure it.",
-  },
-  {
-    name: "N. Founder",
-    title: "AI Startup",
-    avatarSeed: "nora",
-    quote:
-      "This is the first dashboard that looks premium and stays practical when you’re shipping daily. The layout makes it easy to demo, but it’s also great for internal QA.",
-  },
-];
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (mq?.matches) return;
+    const id = window.setInterval(() => setIdx((x) => (x + 1) % REVIEWS.length), 7000);
+    return () => window.clearInterval(id);
+  }, []);
 
-function BrandMark() {
+  const a = REVIEWS[idx % REVIEWS.length];
+  const b = REVIEWS[(idx + 1) % REVIEWS.length];
+
   return (
-    <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
-      <Sparkles size={16} className="text-brand-300" /> Voice Studio
+    <div className="relative h-[210px] w-full">
+      <div className="absolute inset-0 auth-review auth-review-in">
+        <div className="flex items-center gap-3">
+          <img
+            src={avatarDataUri(a.avatarSeed)}
+            alt=""
+            className="h-11 w-11 rounded-2xl border border-white/10 shadow-glow object-cover"
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-white">{a.name}</div>
+            <div className="text-xs text-slate-400">{a.title}</div>
+          </div>
+        </div>
+        <div className="mt-3 text-sm leading-relaxed text-slate-100/90">“{a.quote}”</div>
+      </div>
+
+      {/* preloaded second card for smoother feel */}
+      <div className="absolute inset-0 auth-review opacity-0 pointer-events-none">
+        <div className="flex items-center gap-3">
+          <img
+            src={avatarDataUri(b.avatarSeed)}
+            alt=""
+            className="h-11 w-11 rounded-2xl border border-white/10 shadow-glow object-cover"
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-white">{b.name}</div>
+            <div className="text-xs text-slate-400">{b.title}</div>
+          </div>
+        </div>
+        <div className="mt-3 text-sm leading-relaxed text-slate-100/90">“{b.quote}”</div>
+      </div>
     </div>
   );
 }
 
-function avatarDataUri(seed: string) {
-  const s = String(seed || "user");
-  // simple deterministic “photo-like” SVG avatar (no external requests)
-  const hue = Math.abs(
-    s.split("").reduce((acc, ch) => {
-      return (acc * 31 + ch.charCodeAt(0)) % 360;
-    }, 7)
-  );
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="hsl(${hue} 80% 60%)" stop-opacity="1"/>
-      <stop offset="1" stop-color="hsl(${(hue + 40) % 360} 85% 55%)" stop-opacity="1"/>
-    </linearGradient>
-    <filter id="f" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="0.6"/>
-    </filter>
-  </defs>
-  <rect width="80" height="80" rx="18" fill="url(#g)"/>
-  <circle cx="40" cy="33" r="14" fill="rgba(255,255,255,0.92)"/>
-  <path d="M16 72c4-16 17-24 24-24s20 8 24 24" fill="rgba(255,255,255,0.92)"/>
-  <circle cx="30" cy="33" r="2" fill="rgba(2,6,23,0.75)"/>
-  <circle cx="50" cy="33" r="2" fill="rgba(2,6,23,0.75)"/>
-  <path d="M34 39c4 4 8 4 12 0" stroke="rgba(2,6,23,0.55)" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M10 18c10-10 22-14 30-14s20 4 30 14" stroke="rgba(255,255,255,0.18)" stroke-width="10" filter="url(#f)" fill="none" stroke-linecap="round"/>
-</svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
-}
-
-function TestimonialCard(props: { t: Testimonial }) {
-  const { t } = props;
+function ProductPreview() {
   return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-      <div className="flex items-center gap-3">
-        <img
-          src={avatarDataUri(t.avatarSeed)}
-          alt={`${t.name} avatar`}
-          className="h-10 w-10 rounded-2xl border border-white/10 shadow-glow object-cover"
-          loading="lazy"
-        />
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-white">{t.name}</div>
-          <div className="text-xs text-slate-400">{t.title}</div>
+    <div className="auth-card auth-enter-delayed flex h-[520px] flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-slate-400">Preview</div>
+          <div className="mt-0.5 text-sm font-semibold text-white">Call timeline</div>
+        </div>
+        <div className="rounded-2xl bg-brand-500/10 px-3 py-2 text-xs text-brand-200 shadow-glow">Live</div>
+      </div>
+
+      <div className="flex-1 p-5">
+        <div className="grid gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-white">Recording</div>
+              <div className="text-xs text-slate-400">mp3 • seekable</div>
+            </div>
+            <div className="mt-3 h-2 w-full rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full w-1/3 rounded-full bg-brand-400/70 auth-shimmer" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-white">Transcript</div>
+              <div className="text-xs text-slate-400">role-based</div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <div className="rounded-2xl bg-slate-950/45 p-3 border border-white/10">
+                <div className="text-xs text-slate-400">Agent</div>
+                <div className="mt-1 h-3 w-[78%] rounded bg-white/10 auth-shimmer" />
+              </div>
+              <div className="rounded-2xl bg-brand-500/12 p-3 border border-white/10">
+                <div className="text-xs text-brand-200">User</div>
+                <div className="mt-1 h-3 w-[62%] rounded bg-white/10 auth-shimmer" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-white">Analytics</div>
+              <div className="text-xs text-slate-400">date filters</div>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2 items-end h-16">
+              <div className="h-6 rounded bg-white/10 auth-shimmer" />
+              <div className="h-10 rounded bg-white/10 auth-shimmer" />
+              <div className="h-8 rounded bg-white/10 auth-shimmer" />
+              <div className="h-14 rounded bg-white/10 auth-shimmer" />
+            </div>
+          </div>
         </div>
       </div>
-      <div className="mt-3 text-sm leading-relaxed text-slate-100/90">“{t.quote}”</div>
-    </div>
-  );
-}
 
-function TestimonialsTicker() {
-  // Duplicate for seamless infinite scroll (CSS animation).
-  const items = [...TESTIMONIALS, ...TESTIMONIALS];
-  return (
-    <div className="auth-ticker-mask mt-3 flex-1 min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5">
-      <div className="auth-ticker-track space-y-4">
-        {items.map((t, i) => (
-          <TestimonialCard key={`${i}-${t.name}`} t={t} />
-        ))}
+      <div className="border-t border-white/10 px-5 py-4">
+        <div className="text-xs uppercase tracking-wider text-slate-400">Trusted by teams</div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-300">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+            <div className="text-slate-400">Setup</div>
+            <div className="mt-0.5 text-slate-100">~10 min</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+            <div className="text-slate-400">Playback</div>
+            <div className="mt-0.5 text-slate-100">instant</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+            <div className="text-slate-400">Iteration</div>
+            <div className="mt-0.5 text-slate-100">fast</div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function AuthShell(props: {
+function AuthLayout(props: {
+  mode: "login" | "register";
   title: string;
   subtitle: string;
   children: React.ReactNode;
@@ -184,109 +238,84 @@ function AuthShell(props: {
 }) {
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden">
-      {/* cinematic gradient overlay */}
-      <div className="pointer-events-none fixed inset-0 auth-aurora" />
+      <div className="pointer-events-none fixed inset-0 auth-bg-lux" />
+      <div className="pointer-events-none fixed inset-0 auth-noise" />
 
-      <div className="mx-auto flex min-h-screen lg:min-h-0 lg:h-full w-full max-w-7xl items-stretch px-4 py-8 lg:px-8">
-        <div className="grid w-full gap-8 lg:grid-cols-[440px_1fr] items-stretch">
-          {/* Left: form */}
-          <div className="relative">
-            <div className="lg:sticky lg:top-10">
-              <BrandMark />
-              <h1 className="mt-6 text-3xl font-semibold tracking-tight text-white">{props.title}</h1>
-              <p className="mt-2 text-sm text-slate-300">{props.subtitle}</p>
+      <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:py-0 lg:px-10">
+        <div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_460px_1fr]">
+          {/* Left: story */}
+          <div className="hidden lg:block">
+            <div className="auth-enter">
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 shadow-glow">
+                <Sparkles size={16} className="text-brand-300" /> Voice Studio
+              </div>
 
-              <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_0_0_1px_rgba(0,240,106,.08),0_30px_120px_rgba(0,0,0,.45)]">
-                {props.children}
-                <div className="mt-5">{props.footer}</div>
+              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
+                Ship voice agents with a dashboard that feels <span className="text-brand-300">lux</span>.
+              </h1>
+              <p className="mt-4 text-sm text-slate-300 max-w-md">
+                A calmer workflow for building, testing, and improving voice experiences—without switching tools all day.
+              </p>
 
-                <div className="mt-5 grid grid-cols-3 gap-2 text-xs text-slate-300">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-slate-400">Secure</div>
-                    <div className="mt-0.5 text-slate-100">token auth</div>
+              <div className="mt-6 space-y-2 text-sm text-slate-200">
+                {BULLETS.map((b) => (
+                  <div key={b} className="flex items-center gap-2">
+                    <div className="rounded-full bg-brand-500/15 p-1 text-brand-200 shadow-glow">
+                      <Check size={14} />
+                    </div>
+                    <div className="text-slate-200/90">{b}</div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-slate-400">Fast</div>
-                    <div className="mt-0.5 text-slate-100">low latency</div>
+                ))}
+              </div>
+
+              <div className="mt-8 auth-card p-5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs uppercase tracking-wider text-slate-400">What teams say</div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
+                    {props.mode === "login" ? "Welcome back" : "Get started"}
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-slate-400">Unified</div>
-                    <div className="mt-0.5 text-slate-100">web + phone</div>
-                  </div>
+                </div>
+                <div className="mt-4">
+                  <ReviewCrossfade />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right: showcase */}
-          <div className="relative hidden lg:block">
-            <div className="h-full rounded-3xl border border-white/10 bg-slate-950/25 p-8 overflow-hidden">
-              <div className="absolute inset-0 auth-grid opacity-[0.55]" />
-              <div className="relative h-full flex flex-col">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-slate-400">What you get</div>
-                    <div className="mt-1 text-xl font-semibold text-white">A dashboard built for shipping</div>
-                  </div>
-                  <div className="rounded-2xl bg-brand-500/10 px-3 py-2 text-sm text-brand-200 shadow-glow">
-                    Low-latency • Telephony • Web
-                  </div>
+          {/* Middle: form */}
+          <div className="auth-card auth-enter">
+            <div className="border-b border-white/10 px-6 py-5">
+              <div className="inline-flex items-center gap-2 rounded-2xl bg-brand-500/12 px-3 py-2 text-sm text-brand-200 shadow-glow">
+                <Sparkles size={16} /> Voice Studio
+              </div>
+              <div className="mt-4 text-2xl font-semibold tracking-tight text-white">{props.title}</div>
+              <div className="mt-1 text-sm text-slate-300">{props.subtitle}</div>
+            </div>
+
+            <div className="px-6 py-6">
+              {props.children}
+              <div className="mt-5">{props.footer}</div>
+
+              <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-slate-300">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <div className="text-slate-400">Secure</div>
+                  <div className="mt-0.5 text-slate-100">token auth</div>
                 </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-sm font-semibold text-white">Realtime transcripts</div>
-                    <div className="mt-1 text-xs text-slate-400">See speech as it happens, with clean role attribution.</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-sm font-semibold text-white">Call recordings</div>
-                    <div className="mt-1 text-xs text-slate-400">Playback-ready recordings with fast seeking.</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-sm font-semibold text-white">Analytics that move</div>
-                    <div className="mt-1 text-xs text-slate-400">Date filters + time series so you can measure impact.</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-sm font-semibold text-white">Multi-agent prompts</div>
-                    <div className="mt-1 text-xs text-slate-400">One runtime, many agents. Iterate without redeploy drama.</div>
-                  </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <div className="text-slate-400">Fast</div>
+                  <div className="mt-0.5 text-slate-100">low latency</div>
                 </div>
-
-                <div className="mt-7 flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-wider text-slate-400">Teams using this</div>
-                  <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-300">
-                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Sales</span>
-                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Support</span>
-                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Ops</span>
-                    <span className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5">Engineering</span>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-300">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-slate-400">Avg setup</div>
-                    <div className="mt-0.5 text-slate-100">~10 min</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-slate-400">Playback</div>
-                    <div className="mt-0.5 text-slate-100">instant</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-slate-400">Iteration</div>
-                    <div className="mt-0.5 text-slate-100">fast</div>
-                  </div>
-                </div>
-
-                <TestimonialsTicker />
-
-                <div className="mt-7 flex items-center justify-between text-xs text-slate-400">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <span className="text-slate-300">Tip:</span> Use date filters in Analytics to validate improvements.
-                  </div>
-                  <div className="text-slate-500">Secure • Workspace-scoped • Fast</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <div className="text-slate-400">Unified</div>
+                  <div className="mt-0.5 text-slate-100">web + phone</div>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Right: product preview */}
+          <div className="hidden lg:block">
+            <ProductPreview />
           </div>
         </div>
       </div>
@@ -303,26 +332,21 @@ export function LoginPage() {
   const can = useMemo(() => email.trim() && password.trim(), [email, password]);
 
   return (
-    <AuthShell
-      title="Welcome back"
-      subtitle="Sign in to manage agents, prompts, calls, recordings, and analytics."
+    <AuthLayout
+      mode="login"
+      title="Sign in"
+      subtitle="Welcome back. Continue where you left off."
       footer={
         <div className="text-sm text-slate-300">
           No account?{" "}
-          <Link to="/register" className="text-brand-300 hover:text-brand-200">
+          <Link to="/register" className="text-brand-300 hover:text-brand-200 transition-colors">
             Create one
           </Link>
         </div>
       }
     >
       <div className="space-y-3">
-        <Field
-          label="Email"
-          value={email}
-          onChange={setEmail}
-          placeholder="you@company.com"
-          icon={<Mail size={16} />}
-        />
+        <Field label="Email" value={email} onChange={setEmail} placeholder="you@company.com" icon={<Mail size={16} />} />
         <Field
           label="Password"
           value={password}
@@ -352,7 +376,7 @@ export function LoginPage() {
         </button>
         {err ? <div className="text-sm text-red-300">{err}</div> : null}
       </div>
-    </AuthShell>
+    </AuthLayout>
   );
 }
 
@@ -367,13 +391,14 @@ export function RegisterPage() {
   const can = useMemo(() => email.trim() && password.trim() && name.trim(), [email, password, name]);
 
   return (
-    <AuthShell
-      title="Create your account"
-      subtitle="Get a private workspace and start building voice agents in minutes."
+    <AuthLayout
+      mode="register"
+      title="Create account"
+      subtitle="Get a private workspace and start building in minutes."
       footer={
         <div className="text-sm text-slate-300">
           Have an account?{" "}
-          <Link to="/login" className="text-brand-300 hover:text-brand-200">
+          <Link to="/login" className="text-brand-300 hover:text-brand-200 transition-colors">
             Sign in
           </Link>
         </div>
@@ -381,13 +406,7 @@ export function RegisterPage() {
     >
       <div className="space-y-3">
         <Field label="Name" value={name} onChange={setName} placeholder="Your name" icon={<UserIcon size={16} />} />
-        <Field
-          label="Email"
-          value={email}
-          onChange={setEmail}
-          placeholder="you@company.com"
-          icon={<Mail size={16} />}
-        />
+        <Field label="Email" value={email} onChange={setEmail} placeholder="you@company.com" icon={<Mail size={16} />} />
         <Field
           label="Password"
           value={password}
@@ -421,7 +440,7 @@ export function RegisterPage() {
           By continuing, you agree to keep your workspace secure and not share your login credentials.
         </div>
       </div>
-    </AuthShell>
+    </AuthLayout>
   );
 }
 
