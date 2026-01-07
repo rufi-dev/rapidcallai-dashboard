@@ -113,8 +113,15 @@ export type BillingSummary = {
         llmUsd: number;
         sttUsd: number;
         ttsUsd: number;
+        phoneNumbersUsd?: number;
+        platformUsd?: number;
       };
   otherUsd?: number | null;
+  fixedFees?: {
+    phoneNumbersCount: number;
+    phoneNumberMonthlyFeeUsd: number;
+    platformMonthlyFeeUsd: number;
+  };
   usageTotals: {
     llmPromptTokens: number;
     llmPromptCachedTokens: number;

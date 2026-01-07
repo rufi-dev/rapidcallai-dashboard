@@ -194,6 +194,24 @@ export function AppShell() {
                             <div className="text-slate-400">TTS</div>
                             <div className="font-medium text-slate-200">${billing.breakdown.ttsUsd.toFixed(2)}</div>
                           </div>
+                          {typeof billing.breakdown.phoneNumbersUsd === "number" && billing.breakdown.phoneNumbersUsd > 0 ? (
+                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+                              <div className="text-slate-400">Phone numbers</div>
+                              <div className="font-medium text-slate-200">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
+                            </div>
+                          ) : null}
+                          {typeof billing.breakdown.platformUsd === "number" && billing.breakdown.platformUsd > 0 ? (
+                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+                              <div className="text-slate-400">Platform</div>
+                              <div className="font-medium text-slate-200">${billing.breakdown.platformUsd.toFixed(2)}</div>
+                            </div>
+                          ) : null}
+                          {typeof billing.otherUsd === "number" && billing.otherUsd > 0 ? (
+                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+                              <div className="text-slate-400">Other</div>
+                              <div className="font-medium text-slate-200">${billing.otherUsd.toFixed(2)}</div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                       <div className="flex items-center justify-between gap-3">

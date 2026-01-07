@@ -174,6 +174,18 @@ export function BillingPage() {
                                     {billing?.breakdown?.ttsUsd != null ? `$${billing.breakdown.ttsUsd.toFixed(2)}` : "—"}
                                   </div>
                                 </div>
+                                {typeof billing?.breakdown?.phoneNumbersUsd === "number" && billing.breakdown.phoneNumbersUsd > 0 ? (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-slate-300">Phone numbers</div>
+                                    <div className="font-semibold text-white">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
+                                  </div>
+                                ) : null}
+                                {typeof billing?.breakdown?.platformUsd === "number" && billing.breakdown.platformUsd > 0 ? (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-slate-300">Platform</div>
+                                    <div className="font-semibold text-white">${billing.breakdown.platformUsd.toFixed(2)}</div>
+                                  </div>
+                                ) : null}
                                 {typeof billing?.otherUsd === "number" && billing.otherUsd > 0 ? (
                                   <div className="flex items-center justify-between gap-3">
                                     <div className="text-slate-300">Other</div>
@@ -241,6 +253,18 @@ export function BillingPage() {
                       <div className="text-slate-300">TTS</div>
                       <div className="font-semibold text-white">${billing.breakdown.ttsUsd.toFixed(2)}</div>
                     </div>
+                    {typeof billing.breakdown.phoneNumbersUsd === "number" && billing.breakdown.phoneNumbersUsd > 0 ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-slate-300">Phone numbers</div>
+                        <div className="font-semibold text-white">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
+                      </div>
+                    ) : null}
+                    {typeof billing.breakdown.platformUsd === "number" && billing.breakdown.platformUsd > 0 ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-slate-300">Platform</div>
+                        <div className="font-semibold text-white">${billing.breakdown.platformUsd.toFixed(2)}</div>
+                      </div>
+                    ) : null}
                     {typeof billing.otherUsd === "number" && billing.otherUsd > 0 ? (
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-slate-300">Other</div>
