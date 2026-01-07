@@ -60,8 +60,13 @@ type GeneratorState = {
   primaryGoal: string;
   targetCustomer: string;
   tone: "warm" | "professional" | "friendly";
+  greetingStyle: string;
+  offerings: string;
   hours: string;
   bookingLink: string;
+  requiredFields: string;
+  faqs: string;
+  disallowed: string;
   escalation: string;
   policies: string;
   extra: string;
@@ -76,6 +81,11 @@ function buildPrompt(s: GeneratorState): string {
         ? "Professional, concise, calm, efficient. Sounds human."
         : "Friendly, concise, energetic, helpful. Sounds human.";
 
+  const required = (s.requiredFields || "name, phone number, reason for calling, preferred time")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
   return [
     "## ROLE",
     `You are "${s.agentName || "Voice Assistant"}", the voice assistant for ${s.businessName || "our business"}.`,
@@ -88,9 +98,12 @@ function buildPrompt(s: GeneratorState): string {
     "",
     "## STYLE",
     toneLine,
-    "Keep responses short. Ask one clear question at a time.",
+    "Voice-only. Speak naturally. Do NOT use emojis, markdown, or bullet symbols in spoken output.",
+    "Keep responses short. Ask ONE clear question at a time.",
+    "Confirm important details once (name/number/time).",
     "Avoid long monologues. If unsure, ask a clarifying question.",
-    "Never invent details about pricing/policies—ask or escalate.",
+    "Never invent details about pricing/policies/medical/legal—ask or escalate.",
+    s.greetingStyle ? `Greeting style: ${s.greetingStyle}` : "",
     "",
     template
       ? [
@@ -98,21 +111,53 @@ function buildPrompt(s: GeneratorState): string {
           `Use this flow for a "${template.name}" call:`,
           ...template.bullets.map((b, i) => `${i + 1}. ${b}`),
           "",
+          "Conversation stages:",
+          "1) Warm greeting + identify intent",
+          "2) Ask the minimum questions to progress",
+          "3) Offer the next step (book / transfer / follow-up)",
+          "4) Confirm details + close politely",
+          "",
         ].join("\n")
       : "",
     "## BUSINESS CONTEXT",
+    s.offerings ? `Offerings / services:\n${s.offerings}` : "",
     s.hours ? `Hours: ${s.hours}` : "",
     s.bookingLink ? `Booking link: ${s.bookingLink}` : "",
     s.policies ? `Policies / constraints:\n${s.policies}` : "",
+    "",
+    "## REQUIRED DATA TO CAPTURE",
+    required.length ? required.map((x) => `- ${x}` as const).join("\n") : "- name\n- phone number\n- reason for calling\n- preferred time",
+    "",
+    "## FAQs (ANSWER BRIEFLY)",
+    s.faqs
+      ? s.faqs
+      : "If asked common questions, answer briefly. If you don't know, say you can connect them to a human or take a message.",
+    "",
+    "## DO NOT",
+    s.disallowed
+      ? s.disallowed
+      : "Do not provide medical/legal advice. Do not claim guarantees. Do not mention internal system details. Do not be verbose.",
     "",
     "## ESCALATION",
     s.escalation
       ? s.escalation
       : "If the caller needs a human, collect: name, callback number, and a 1-sentence summary. Then confirm next steps.",
     "",
+    "## CALL SUMMARY (INTERNAL — do NOT speak this unless asked)",
+    "After the call ends, produce a short structured summary in your mind:",
+    "Caller: <name> • Phone: <number>",
+    "Intent: <why they called>",
+    "Key details: <2-4 bullets>",
+    "Next step: <booked / transferred / follow-up needed>",
+    "",
     "## PERSONALIZATION NOTES",
     "If the caller shares their name, use it naturally.",
     "If you collect details, confirm them back once (short).",
+    "",
+    "## EXAMPLES (STYLE ONLY)",
+    'Example greeting: "Hi! Thanks for calling. How can I help today?"',
+    'Example capture: "What’s the best number to reach you? And what day/time works best?"',
+    'Example close: "Perfect — I’ve got that. Anything else before we wrap up?"',
     "",
     s.extra ? "## EXTRA INSTRUCTIONS\n" + s.extra : "",
   ]
@@ -142,8 +187,13 @@ export function AgentsPage() {
     primaryGoal: "",
     targetCustomer: "",
     tone: "professional",
+    greetingStyle: "Warm, confident, and respectful. Use the caller’s time wisely.",
+    offerings: "",
     hours: "",
     bookingLink: "",
+    requiredFields: "name, phone number, reason for calling, preferred time",
+    faqs: "",
+    disallowed: "",
     escalation: "",
     policies: "",
     extra: "",
@@ -404,6 +454,15 @@ export function AgentsPage() {
                       placeholder="e.g. Book a free consultation and collect name + phone + preferred time."
                     />
                   </div>
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Offerings / services (optional)</div>
+                    <Textarea
+                      value={gen.offerings}
+                      onChange={(v) => setGen({ ...gen, offerings: v })}
+                      rows={3}
+                      placeholder="e.g. Free consultation, braces, Invisalign, retainers, pricing discussion handled by staff…"
+                    />
+                  </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
                       <div className="mb-1 text-xs text-slate-400">Tone</div>
@@ -422,6 +481,14 @@ export function AgentsPage() {
                       <Input value={gen.targetCustomer} onChange={(v) => setGen({ ...gen, targetCustomer: v })} placeholder="e.g. Parents of teens" />
                     </div>
                   </div>
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Greeting style (optional)</div>
+                    <Input
+                      value={gen.greetingStyle}
+                      onChange={(v) => setGen({ ...gen, greetingStyle: v })}
+                      placeholder='e.g. "Short, warm, confident. Ask one question at a time."'
+                    />
+                  </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
                       <div className="mb-1 text-xs text-slate-400">Office hours (optional)</div>
@@ -431,6 +498,32 @@ export function AgentsPage() {
                       <div className="mb-1 text-xs text-slate-400">Booking link (optional)</div>
                       <Input value={gen.bookingLink} onChange={(v) => setGen({ ...gen, bookingLink: v })} placeholder="https://..." />
                     </div>
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Required info to capture (comma-separated)</div>
+                    <Input
+                      value={gen.requiredFields}
+                      onChange={(v) => setGen({ ...gen, requiredFields: v })}
+                      placeholder="name, phone number, reason, preferred time, email…"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">FAQs you want the agent to answer (optional)</div>
+                    <Textarea
+                      value={gen.faqs}
+                      onChange={(v) => setGen({ ...gen, faqs: v })}
+                      rows={4}
+                      placeholder="Examples:\n- Do you accept insurance?\n- What’s the address?\n- How long is a consultation?\n- What should I bring?"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Disallowed topics / strict rules (optional)</div>
+                    <Textarea
+                      value={gen.disallowed}
+                      onChange={(v) => setGen({ ...gen, disallowed: v })}
+                      rows={3}
+                      placeholder="Examples:\n- No medical advice\n- Never quote prices\n- No discounts\n- Don’t mention internal tools"
+                    />
                   </div>
                   <div>
                     <div className="mb-1 text-xs text-slate-400">Policies / constraints (optional)</div>
