@@ -44,8 +44,10 @@ function Field(props: {
 }
 
 function StatsSpotlight() {
+  const series = [24, 38, 30, 44, 58, 52, 68];
+  const max = Math.max(...series);
   return (
-    <div className="auth-card auth-enter-delayed flex h-full max-h-[calc(100vh-140px)] flex-col overflow-hidden">
+    <div className="auth-card auth-panel auth-enter-delayed flex flex-col overflow-hidden">
       <div className="border-b border-white/10 px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
@@ -85,7 +87,7 @@ function StatsSpotlight() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 flex-1 min-h-0">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 flex-1 min-h-0 flex flex-col">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold text-white">Calls over time</div>
@@ -94,8 +96,20 @@ function StatsSpotlight() {
             <div className="text-xs text-slate-300 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">Filter-ready</div>
           </div>
 
-          <div className="mt-4 h-[120px] rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden">
-            <div className="h-full w-full auth-sparkline" />
+          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/30 p-4 overflow-hidden flex-1 min-h-0">
+            <div className="h-full w-full grid items-end grid-cols-7 gap-2">
+              {series.map((v, i) => (
+                <div key={i} className="w-full flex flex-col items-center justify-end gap-2">
+                  <div
+                    className="w-full rounded-xl bg-white/10 overflow-hidden border border-white/10"
+                    style={{ height: `${Math.max(18, Math.round((v / max) * 120))}px` }}
+                  >
+                    <div className="h-full w-full bg-gradient-to-t from-brand-500/35 to-brand-400/10 auth-shimmer" />
+                  </div>
+                  <div className="text-[10px] text-slate-500">{i + 1}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-300">
@@ -135,11 +149,11 @@ function AuthLayout(props: {
       <div className="pointer-events-none fixed inset-0 auth-bg-lux" />
       <div className="pointer-events-none fixed inset-0 auth-noise" />
 
-      <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:py-0 lg:px-10">
-        <div className="grid h-full items-center gap-8 lg:grid-cols-[360px_520px_620px]">
+      <div className="mx-auto h-full w-full max-w-7xl px-4 py-10 lg:px-10 lg:py-0 flex items-center justify-center">
+        <div className="grid w-full items-stretch gap-8 lg:grid-cols-[360px_520px_620px]">
           {/* Left: visual quickstart (replaces the big hero text) */}
           <div className="hidden lg:block auth-enter">
-            <div className="auth-card h-full max-h-[calc(100vh-140px)] overflow-hidden">
+            <div className="auth-card auth-panel overflow-hidden">
               <div className="border-b border-white/10 px-5 py-5">
                 <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm text-slate-200 shadow-glow">
                   <Sparkles size={16} className="text-brand-300" /> Voice Studio
@@ -184,7 +198,7 @@ function AuthLayout(props: {
           </div>
 
           {/* Middle: auth */}
-          <div className="auth-card auth-enter">
+          <div className="auth-card auth-panel auth-enter overflow-hidden flex flex-col">
             <div className="border-b border-white/10 px-6 py-5">
               <div className="inline-flex items-center gap-2 rounded-2xl bg-brand-500/12 px-3 py-2 text-sm text-brand-200 shadow-glow">
                 <Sparkles size={16} /> Voice Studio
@@ -193,7 +207,7 @@ function AuthLayout(props: {
               <div className="mt-1 text-sm text-slate-300">{props.subtitle}</div>
             </div>
 
-            <div className="px-6 py-6">
+            <div className="px-6 py-6 flex-1 min-h-0 flex flex-col">
               {props.children}
               <div className="mt-5">{props.footer}</div>
 
@@ -210,6 +224,10 @@ function AuthLayout(props: {
                   <div className="text-slate-400">Unified</div>
                   <div className="mt-0.5 text-slate-100">web + phone</div>
                 </div>
+              </div>
+
+              <div className="mt-auto pt-6 text-xs text-slate-400">
+                Tip: after your first web test, open Call History to see recording + transcript.
               </div>
             </div>
           </div>

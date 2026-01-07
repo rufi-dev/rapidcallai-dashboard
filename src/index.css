@@ -63,6 +63,11 @@ body {
   backdrop-filter: blur(18px);
 }
 
+/* Make auth panels equal height and keep the whole layout vertically centered without page scroll */
+.auth-panel {
+  height: min(720px, calc(100vh - 160px));
+}
+
 @keyframes authEnter {
   from {
     opacity: 0;
