@@ -69,6 +69,8 @@ export type CallRecord = {
       };
   createdAt: number;
   updatedAt: number;
+  // Server attaches rich metrics (usage + normalized billing + cost breakdowns). Not all calls have this.
+  metrics?: any;
 };
 
 export type CallSummary = {
@@ -134,6 +136,39 @@ export type BillingSummary = {
     llm: boolean;
     stt: boolean;
     tts: boolean;
+    telephony?: boolean;
+    livekit?: boolean;
+  };
+
+  // New: minute-normalized, complete cost model (COGS + Retail + Fixed fees)
+  totals?: {
+    calls: number;
+    callMinutes: number;
+    participantMinutes: number;
+    participantMinutesEstimated?: number;
+    livekitWebhookCalls?: number;
+    billedSeconds: number;
+    cogs: {
+      totalUsd: number;
+      totalUsdPerMin: number;
+      breakdownUsd: Record<string, number>;
+      breakdownUsdPerMin: Record<string, number>;
+    };
+    retail: {
+      totalUsd: number;
+      totalUsdPerMin: number;
+      breakdownUsd: Record<string, number>;
+      breakdownUsdPerMin: Record<string, number>;
+      method?: string;
+      impliedGrossMarginRate?: number | null;
+      recommendedRetailUsdPerMin?: number;
+    };
+    fixedFees: {
+      totalUsd: number;
+      totalUsdPerMin: number;
+      phoneNumbersUsd: number;
+      platformBaseUsd: number;
+    };
   };
 };
 
@@ -172,10 +207,9 @@ export type MetricsSnapshot = {
 export type BillingUsagePoint = {
   t: number; // bucket start (ms)
   callMinutes: number;
-  llmUsd: number;
-  sttUsd: number;
-  ttsUsd: number;
-  platformUsageUsd: number;
+  participantMinutes?: number;
+  cogsUsd?: number;
+  retailUsd?: number;
   phoneNumbersUsd: number;
   platformBaseUsd: number;
   totalUsd: number;
@@ -185,7 +219,11 @@ export type BillingUsageResponse = {
   range: { from: number; to: number; tz: string };
   bucket: "day" | "week";
   series: BillingUsagePoint[];
-  totals: Omit<BillingUsagePoint, "t"> & { calls: number };
+  totals: Omit<BillingUsagePoint, "t"> & {
+    calls: number;
+    cogsBreakdownUsd?: Record<string, number>;
+    retailBreakdownUsd?: Record<string, number>;
+  };
 };
 
 export type AgentUsageSummary = {

@@ -301,7 +301,7 @@ export function BillingPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="mt-4 grid gap-4 md:grid-cols-4">
               <Card className="bg-slate-950/30">
                 <div className="text-xs text-slate-400">Total cost</div>
                 <div className="mt-2 text-2xl font-semibold text-white">
@@ -328,6 +328,17 @@ export function BillingPage() {
                       : "—"}
                 </div>
                 <div className="mt-1 text-sm text-slate-300">Includes fixed fees in this range</div>
+              </Card>
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">COGS per minute</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {usage?.totals?.callMinutes && (usage.totals as any).cogsUsd != null
+                    ? `$${(Number((usage.totals as any).cogsUsd) / Math.max(0.0001, Number(usage.totals.callMinutes))).toFixed(3)}`
+                    : usageLoading
+                      ? "Loading…"
+                      : "—"}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">Internal (includes overhead allocation)</div>
               </Card>
             </div>
 
@@ -379,29 +390,44 @@ export function BillingPage() {
                 {usage?.totals ? (
                   <div className="mt-3 space-y-3 text-sm">
                     {(() => {
-                      const items = [
-                        { k: "Platform usage", v: Number(usage.totals.platformUsageUsd || 0) },
-                        { k: "LLM", v: Number(usage.totals.llmUsd || 0) },
-                        { k: "STT", v: Number(usage.totals.sttUsd || 0) },
-                        { k: "TTS", v: Number(usage.totals.ttsUsd || 0) },
-                        { k: "Phone numbers", v: Number(usage.totals.phoneNumbersUsd || 0) },
-                        { k: "Platform base", v: Number(usage.totals.platformBaseUsd || 0) },
-                      ].filter((it) => it.v > 0.00001);
+                      const minutes = Math.max(0.0001, Number(usage.totals.callMinutes || 0));
+                      const retailTotal = Number((usage.totals as any).retailUsd || 0);
+                      const breakdown = ((usage.totals as any).retailBreakdownUsd || null) as null | Record<string, number>;
+
+                      const items = breakdown
+                        ? Object.entries(breakdown)
+                            .map(([k, v]) => ({ k, v: Number(v || 0) }))
+                            .filter((it) => it.v > 0.00001)
+                            .sort((a, b) => b.v - a.v)
+                        : [
+                            { k: "LLM", v: Number((usage.totals as any).llmUsd || 0) },
+                            { k: "STT", v: Number((usage.totals as any).sttUsd || 0) },
+                            { k: "TTS", v: Number((usage.totals as any).ttsUsd || 0) },
+                            { k: "Phone numbers", v: Number(usage.totals.phoneNumbersUsd || 0) },
+                            { k: "Platform base", v: Number(usage.totals.platformBaseUsd || 0) },
+                          ].filter((it) => it.v > 0.00001);
+
+                      const denom = Math.max(1e-6, retailTotal || Number(usage.totals.totalUsd || 0));
                       const max = Math.max(1e-6, ...items.map((i) => i.v));
-                      return items.map((it) => (
-                        <div key={it.k}>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-slate-300">{it.k}</div>
-                            <div className="font-semibold text-white">${it.v.toFixed(2)}</div>
+
+                      return items.map((it) => {
+                        const usdPerMin = it.v / minutes;
+                        const pct = (it.v / denom) * 100;
+                        return (
+                          <div key={it.k}>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-slate-300">{it.k}</div>
+                              <div className="text-right">
+                                <div className="font-semibold text-white">${it.v.toFixed(2)}</div>
+                                <div className="text-xs text-slate-400">${usdPerMin.toFixed(4)}/min · {pct.toFixed(0)}%</div>
+                              </div>
+                            </div>
+                            <div className="mt-2 h-2 rounded-full bg-white/5">
+                              <div className="h-2 rounded-full bg-sky-400/70" style={{ width: `${Math.max(2, Math.round((it.v / max) * 100))}%` }} />
+                            </div>
                           </div>
-                          <div className="mt-2 h-2 rounded-full bg-white/5">
-                            <div
-                              className="h-2 rounded-full bg-sky-400/70"
-                              style={{ width: `${Math.max(2, Math.round((it.v / max) * 100))}%` }}
-                            />
-                          </div>
-                        </div>
-                      ));
+                        );
+                      });
                     })()}
                   </div>
                 ) : usageLoading ? (
@@ -427,9 +453,46 @@ export function BillingPage() {
                 <div className="mt-1 text-sm text-slate-300">This month (estimated)</div>
               </Card>
               <Card className="bg-slate-950/30">
-                <div className="text-xs text-slate-400">Concurrency used</div>
-                <div className="mt-2 text-lg font-semibold text-white">0 / 20</div>
-                <div className="mt-1 text-sm text-slate-300">Limits will be enforced here later.</div>
+                <div className="text-xs text-slate-400">Recommended price per minute</div>
+                <div className="mt-2 text-lg font-semibold text-white">
+                  {billing?.totals?.retail?.recommendedRetailUsdPerMin != null
+                    ? `$${Number(billing.totals.retail.recommendedRetailUsdPerMin).toFixed(3)}/min`
+                    : "—"}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">Recommended sell price (COGS + buffer + target margin)</div>
+              </Card>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">LiveKit metering (debug)</div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Webhook participant minutes:{" "}
+                  <span className="font-semibold text-white">
+                    {billing?.totals?.participantMinutes != null ? Number(billing.totals.participantMinutes).toFixed(2) : "—"}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm text-slate-200">
+                  Agent-estimated participant minutes:{" "}
+                  <span className="font-semibold text-white">
+                    {billing?.totals?.participantMinutesEstimated != null
+                      ? Number(billing.totals.participantMinutesEstimated).toFixed(2)
+                      : "—"}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-slate-400">
+                  Webhook coverage:{" "}
+                  {billing?.totals?.livekitWebhookCalls != null && billing?.totals?.calls != null
+                    ? `${billing.totals.livekitWebhookCalls}/${billing.totals.calls} calls`
+                    : "—"}
+                </div>
+              </Card>
+              <Card className="bg-slate-950/30">
+                <div className="text-xs text-slate-400">What should these mean?</div>
+                <div className="mt-2 text-sm text-slate-300">
+                  Webhook minutes are derived from LiveKit participant join/leave events with per-session rounding (matches LiveKit billing shape).
+                  Estimated minutes come from agent participant sampling and are a fallback/validation signal.
+                </div>
               </Card>
             </div>
 
