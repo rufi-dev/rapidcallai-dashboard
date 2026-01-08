@@ -356,6 +356,7 @@ export function AgentDetailPage() {
   const [aiMessageMode, setAiMessageMode] = useState<"dynamic" | "custom">("dynamic");
   const [aiMessageText, setAiMessageText] = useState("");
   const [aiDelaySeconds, setAiDelaySeconds] = useState(0);
+  const [maxCallMinutes, setMaxCallMinutes] = useState<number>(0);
 
   const [activeTab, setActiveTab] = useState<"prompt" | "model" | "voice" | "transcriber" | "tools">("prompt");
 
@@ -625,6 +626,7 @@ export function AgentDetailPage() {
       setAiMessageMode(a.welcome?.aiMessageMode ?? "dynamic");
       setAiMessageText(a.welcome?.aiMessageText ?? "");
       setAiDelaySeconds(a.welcome?.aiDelaySeconds ?? 0);
+      setMaxCallMinutes(a.maxCallSeconds ? Math.round(Number(a.maxCallSeconds) / 60) : 0);
 
       const vp = (a.voice?.provider as "cartesia" | "elevenlabs" | undefined) ?? "cartesia";
       setVoiceProvider(vp);
@@ -661,6 +663,7 @@ export function AgentDetailPage() {
     const saved = agent?.promptDraft ?? agent?.promptPublished ?? "";
     const savedWelcome = agent?.welcome ?? {};
     const savedVoice = agent?.voice ?? {};
+    const savedMaxCallMinutes = agent?.maxCallSeconds ? Math.round(Number(agent.maxCallSeconds) / 60) : 0;
     return (
       saved !== draftPrompt ||
       String(agent?.llmModel || "") !== llmModel ||
@@ -668,11 +671,12 @@ export function AgentDetailPage() {
       (savedWelcome.aiMessageMode ?? "dynamic") !== aiMessageMode ||
       (savedWelcome.aiMessageText ?? "") !== aiMessageText ||
       (savedWelcome.aiDelaySeconds ?? 0) !== aiDelaySeconds ||
+      savedMaxCallMinutes !== maxCallMinutes ||
       (savedVoice.provider ?? "cartesia") !== voiceProvider ||
       (savedVoice.model ?? (voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)) !== voiceModel ||
       (savedVoice.voiceId ?? "") !== voiceId
     );
-  }, [agent, draftPrompt, llmModel, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, voiceProvider, voiceModel, voiceId]);
+  }, [agent, draftPrompt, llmModel, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, maxCallMinutes, voiceProvider, voiceModel, voiceId]);
   const canSave = useMemo(() => draftPrompt.trim().length > 0 && isDirty && !saving, [draftPrompt, isDirty, saving]);
 
   async function onSave() {
@@ -683,6 +687,7 @@ export function AgentDetailPage() {
       const updated = await updateAgent(agent.id, {
         promptDraft: draftPrompt,
         llmModel: llmModel || "",
+        maxCallSeconds: Math.max(0, Math.round(Number(maxCallMinutes || 0) * 60)),
         welcome: {
           mode: welcomeMode,
           aiMessageMode,
@@ -728,6 +733,7 @@ export function AgentDetailPage() {
     setAiMessageMode(agent?.welcome?.aiMessageMode ?? "dynamic");
     setAiMessageText(agent?.welcome?.aiMessageText ?? "");
     setAiDelaySeconds(agent?.welcome?.aiDelaySeconds ?? 0);
+    setMaxCallMinutes(agent?.maxCallSeconds ? Math.round(Number(agent.maxCallSeconds) / 60) : 0);
     const vp = (agent?.voice?.provider as "cartesia" | "elevenlabs" | undefined) ?? "cartesia";
     setVoiceProvider(vp);
     setVoiceModel(String(agent?.voice?.model || (vp === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)));
@@ -1038,6 +1044,34 @@ export function AgentDetailPage() {
                       ) : null}
                     </>
                   ) : null}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+                <div className="text-sm font-semibold">Safety limits</div>
+                <div className="mt-1 text-xs text-slate-400">Protect against stuck calls and abnormal durations</div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Max call duration (minutes)</div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={24 * 60}
+                      step={1}
+                      value={Number.isFinite(maxCallMinutes) ? maxCallMinutes : 0}
+                      onChange={(e) => setMaxCallMinutes(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    />
+                    <div className="mt-1 text-xs text-slate-500">
+                      Set to <span className="text-slate-200">0</span> for unlimited. Recommended:{" "}
+                      <span className="text-slate-200">15</span>–<span className="text-slate-200">30</span>.
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                    When a call hits this limit, the agent ends the session and finalizes the call record so it won’t stay{" "}
+                    <span className="text-slate-100">in progress</span>.
+                  </div>
                 </div>
               </div>
 

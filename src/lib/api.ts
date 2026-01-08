@@ -6,6 +6,7 @@ export type AgentProfile = {
   promptDraft?: string;
   promptPublished?: string;
   llmModel?: string; // persisted per-agent LLM model (e.g., "gpt-5.2")
+  maxCallSeconds?: number; // hard cap; 0 = unlimited
   welcome?: {
     mode?: "ai" | "user";
     aiMessageMode?: "dynamic" | "custom";
@@ -376,6 +377,7 @@ export async function createAgent(input: {
   promptDraft?: string;
   promptPublished?: string;
   llmModel?: string;
+  maxCallSeconds?: number;
   welcome?: AgentProfile["welcome"];
   voice?: AgentProfile["voice"];
 }): Promise<AgentProfile> {
@@ -403,6 +405,7 @@ export async function updateAgent(
     promptDraft?: string;
     publish?: boolean;
     llmModel?: string;
+    maxCallSeconds?: number;
     welcome?: AgentProfile["welcome"];
     voice?: AgentProfile["voice"];
   }
