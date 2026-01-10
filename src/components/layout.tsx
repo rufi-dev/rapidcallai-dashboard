@@ -14,7 +14,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
-import { getMe, logout } from "../lib/api";
+import { getBillingStatus, getMe, logout, type BillingStatus } from "../lib/api";
 import { HeaderSlotProvider, useHeaderSlots } from "./headerSlots";
 
 function NavItem(props: { to: string; icon: React.ReactNode; label: string }) {
@@ -85,6 +85,7 @@ export function AppShell() {
   const [workspaceName, setWorkspaceName] = useState<string>("Workspace");
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
 
@@ -99,6 +100,17 @@ export function AppShell() {
       })
       .catch(() => {
         // ignore; RequireAuth handles redirects
+      });
+
+    getBillingStatus()
+      .then((s) => {
+        if (!mounted) return;
+        setBillingStatus(s);
+      })
+      .catch(() => {
+        // ignore; show "Not configured" in plan popover
+        if (!mounted) return;
+        setBillingStatus(null);
       });
     return () => {
       mounted = false;
@@ -156,15 +168,23 @@ export function AppShell() {
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-slate-300">Billing</div>
-                        <div className="font-semibold text-white">Not configured</div>
+                        <div className="font-semibold text-white">
+                          {!billingStatus
+                            ? "Not configured"
+                            : billingStatus.mode === "trial"
+                              ? `Trial ($${billingStatus.trial.creditUsd.toFixed(2)})`
+                              : "Paid"}
+                        </div>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-slate-300">Concurrency Used</div>
                         <div className="font-semibold text-white">0/20</div>
                       </div>
-                      <div className="pt-2 text-xs text-slate-500">
-                        Billing is being rebuilt (Trial credits + Stripe + OpenMeter).
-                      </div>
+                      {!billingStatus ? (
+                        <div className="pt-2 text-xs text-slate-500">
+                          Billing is being rebuilt (Trial credits + Stripe + OpenMeter).
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
