@@ -137,6 +137,7 @@ export type UpcomingInvoiceLine = {
   quantity: number | null;
   unitAmountCents: number | null;
   priceId: string | null;
+  proration?: boolean;
   periodStart: number | null;
   periodEnd: number | null;
 };
@@ -145,6 +146,10 @@ export type UpcomingInvoiceResponse = {
   currency: string;
   totalCents: number;
   totalUsd: number;
+  dueNowCents?: number;
+  dueNowUsd?: number;
+  nextInvoiceCents?: number;
+  nextInvoiceUsd?: number;
   lines: UpcomingInvoiceLine[];
   sums: { linesCents: number; matchesTotal: boolean };
 };

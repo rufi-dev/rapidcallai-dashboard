@@ -157,6 +157,18 @@ export function BillingPage() {
 
           {invoice ? (
             <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+              <div className="grid gap-2 border-b border-white/10 bg-slate-950/20 px-3 py-2 text-xs text-slate-300 md:grid-cols-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>Due now (prorations)</div>
+                  <div className="font-semibold text-white">
+                    ${(Number(invoice.dueNowCents || 0) / 100).toFixed(2)}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:justify-end">
+                  <div className="md:mr-3">Next invoice total</div>
+                  <div className="font-semibold text-white">${(invoice.totalCents / 100).toFixed(2)}</div>
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-0 bg-white/5 px-3 py-2 text-xs text-slate-300">
                 <div>Line item</div>
                 <div className="text-right">Qty</div>
