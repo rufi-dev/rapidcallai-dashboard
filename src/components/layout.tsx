@@ -184,29 +184,27 @@ export function AppShell() {
 
                 {planOpen ? (
                   <div className="absolute bottom-[52px] left-0 w-full rounded-2xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-slate-300">{planLabel}</div>
-                        <div className="font-semibold text-white">
-                          {!billingStatus
-                            ? "Not configured"
-                            : billingStatus.mode === "trial"
-                              ? `$${billingStatus.trial.creditUsd.toFixed(2)} credits`
-                              : usageSummary
-                                ? `This month so far: $${usageSummary.totalUsd.toFixed(2)}`
-                                : "This month so far: —"}
-                        </div>
-                      </div>
+                    <div className="text-xs text-slate-400">{planLabel}</div>
+                    <div className="mt-1 text-sm font-semibold text-white">
+                      {!billingStatus
+                        ? "Not configured"
+                        : billingStatus.mode === "trial"
+                          ? `$${billingStatus.trial.creditUsd.toFixed(2)} credits`
+                          : usageSummary
+                            ? `This month so far: $${usageSummary.totalUsd.toFixed(2)}`
+                            : "This month so far: —"}
+                    </div>
+
+                    <div className="mt-3 space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-slate-300">Concurrency Used</div>
                         <div className="font-semibold text-white">0/20</div>
                       </div>
-                      {!billingStatus ? (
-                        <div className="pt-2 text-xs text-slate-500">
-                          Billing is being rebuilt (Trial credits + Stripe + OpenMeter).
-                        </div>
-                      ) : null}
                     </div>
+
+                    {!billingStatus ? (
+                      <div className="pt-3 text-xs text-slate-500">Billing is being rebuilt (Trial credits + Stripe + OpenMeter).</div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

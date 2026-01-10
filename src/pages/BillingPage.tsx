@@ -3,14 +3,31 @@ import { Button, Card } from "../components/ui";
 import {
   ensureStripeSubscription,
   getBillingStatus,
+  getBillingInvoices,
   getBillingUsageSummary,
   getUpcomingInvoice,
   startBillingUpgrade,
+  type BillingInvoice,
+  type BillingInvoicesResponse,
   type BillingUsageSummaryResponse,
   type BillingStatus,
   type UpcomingInvoiceResponse,
 } from "../lib/api";
 import { toast } from "sonner";
+
+function fmtUsdCents(cents: number | null | undefined): string {
+  const n = Number(cents || 0);
+  return `$${(n / 100).toFixed(2)}`;
+}
+
+function fmtDate(ms: number | null | undefined): string {
+  if (!ms) return "—";
+  try {
+    return new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
+}
 
 export function BillingPage() {
   const [status, setStatus] = useState<BillingStatus | null>(null);
@@ -18,8 +35,10 @@ export function BillingPage() {
   const [invoice, setInvoice] = useState<UpcomingInvoiceResponse | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [setupLoading, setSetupLoading] = useState(false);
-  const [showNextInvoice, setShowNextInvoice] = useState(false);
   const [usage, setUsage] = useState<BillingUsageSummaryResponse | null>(null);
+  const [invoices, setInvoices] = useState<BillingInvoicesResponse | null>(null);
+  const [tab, setTab] = useState<"history" | "usage">("history");
+  const [openInvoiceId, setOpenInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -37,6 +56,17 @@ export function BillingPage() {
         } catch {
           if (!mounted) return;
           setUsage(null);
+        }
+
+        // Best-effort: load billing history from OpenMeter (Retell-style transparency).
+        try {
+          const inv = await getBillingInvoices();
+          if (!mounted) return;
+          setInvoices(inv);
+          if (inv?.upcoming?.id) setOpenInvoiceId(inv.upcoming.id);
+        } catch {
+          if (!mounted) return;
+          setInvoices(null);
         }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to load billing status");
@@ -82,6 +112,17 @@ export function BillingPage() {
     }
   }
 
+  async function loadInvoices() {
+    try {
+      const inv = await getBillingInvoices();
+      setInvoices(inv);
+      if (inv?.upcoming?.id) setOpenInvoiceId(inv.upcoming.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load invoices");
+      setInvoices(null);
+    }
+  }
+
   async function ensureSubscriptionAndReload() {
     setSetupLoading(true);
     try {
@@ -100,9 +141,28 @@ export function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="text-3xl font-semibold tracking-tight">Billing</div>
-        <div className="mt-2 max-w-2xl text-sm text-slate-300">Usage is tracked per workspace. Billing starts only after upgrade.</div>
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white">
+            {status?.mode === "trial" ? "Free plan" : "Pay as you go"}
+          </div>
+          <div className="mt-3 text-3xl font-semibold tracking-tight">Billing</div>
+          <div className="mt-2 max-w-2xl text-sm text-slate-300">
+            Clear breakdown like Retell. Usage is tracked per workspace.
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => void loadInvoices()} disabled={loading}>
+            Refresh
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => void loadUpcomingInvoice()}
+            disabled={invoiceLoading || !status?.stripe?.subscriptionId}
+          >
+            {invoiceLoading ? "Loading…" : "Stripe preview"}
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -152,145 +212,198 @@ export function BillingPage() {
           </div>
         </Card>
       ) : (
-        <Card className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="text-sm font-semibold text-white">
-                {usage ? `This month so far: $${Number(usage.totalUsd || 0).toFixed(2)}` : "This month so far: —"}
-              </div>
-              <div className="mt-1 text-sm text-slate-300">
-                This is an estimate of what you used <span className="text-slate-200">this billing period</span> (from OpenMeter).
-              </div>
-              {!status?.stripe?.subscriptionId ? (
-                <div className="mt-2 text-xs text-amber-200">
-                  Stripe subscription not configured for this workspace yet. Click “Fix billing setup”.
-                </div>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
+        <Card className="p-0 overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-white/10 bg-slate-950/20 px-4 py-3">
+            <button
+              onClick={() => setTab("history")}
+              className={[
+                "rounded-xl px-3 py-2 text-sm transition",
+                tab === "history" ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
+              ].join(" ")}
+            >
+              Billing history
+            </button>
+            <button
+              onClick={() => setTab("usage")}
+              className={[
+                "rounded-xl px-3 py-2 text-sm transition",
+                tab === "usage" ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
+              ].join(" ")}
+            >
+              Usage
+            </button>
+            <div className="ml-auto flex items-center gap-2">
               {!status?.stripe?.subscriptionId ? (
                 <Button variant="secondary" onClick={() => void ensureSubscriptionAndReload()} disabled={setupLoading}>
-                  {setupLoading ? "Fixing…" : "Fix billing setup"}
+                  {setupLoading ? "Fixing…" : "Fix Stripe setup"}
                 </Button>
               ) : null}
-              <Button
-                variant="secondary"
-                onClick={() => void loadUpcomingInvoice()}
-                disabled={invoiceLoading || !status?.stripe?.subscriptionId}
-              >
-                {invoiceLoading ? "Loading…" : "Load upcoming invoice"}
-              </Button>
             </div>
           </div>
 
-          {usage ? (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-slate-400">Usage so far (this billing period)</div>
-                <button
-                  onClick={() => void loadUsage()}
-                  className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-white hover:bg-white/15"
-                >
-                  Refresh
-                </button>
-              </div>
-              <div className="mt-2 space-y-2 text-sm">
-                {(usage.lines || []).map((l) => (
-                  <div key={`usage-${l.key}`} className="flex items-center justify-between gap-4">
-                    <div className="min-w-0 truncate text-slate-200">{l.description}</div>
-                    <div className="shrink-0 text-right text-slate-200">
-                      {l.quantity != null ? (
+          {tab === "history" ? (
+            <div className="p-4 space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs text-slate-400">Upcoming invoice</div>
+                    <div className="mt-1 text-2xl font-semibold text-white">
+                      {invoices?.upcoming?.totalCents != null ? fmtUsdCents(invoices.upcoming.totalCents) : "—"}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-300">
+                      Status: <span className="text-white">Ongoing</span>
+                      {invoices?.upcoming?.periodToMs ? (
                         <>
-                          <span className="font-semibold">{Number(l.quantity || 0).toFixed(3).replace(/\.?0+$/, "")}</span>{" "}
-                          <span className="text-slate-400">{l.unit}</span>
+                          {" "}
+                          · Next invoice: <span className="text-white">{fmtDate(invoices.upcoming.periodToMs)}</span>
                         </>
-                      ) : l.amountCents != null ? (
-                        <>
-                          <span className="font-semibold">${(Number(l.amountCents || 0) / 100).toFixed(2)}</span>{" "}
-                          <span className="text-slate-400">so far</span>
-                        </>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
-                ))}
-                {(usage.lines || []).length === 0 ? <div className="text-sm text-slate-300">No usage reported yet.</div> : null}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-              Usage is not available yet (OpenMeter not configured or no data).
-            </div>
-          )}
-
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-xs text-slate-400">Next invoice preview (Stripe)</div>
-            <div className="mt-1 text-sm text-slate-300">
-              Stripe previews often include the <span className="text-slate-200">next month</span> phone subscription charge (that’s why you see $4).
-            </div>
-          </div>
-
-          {invoice ? (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-              <div className="grid gap-2 border-b border-white/10 bg-slate-950/20 px-3 py-2 text-xs text-slate-300 md:grid-cols-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div>Due now (prorations)</div>
-                  <div className="font-semibold text-white">
-                    ${(Number(invoice.dueNowCents || 0) / 100).toFixed(2)}
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={() => void loadInvoices()}>
+                      Refresh
+                    </Button>
+                    {invoices?.upcoming?.url ? (
+                      <a
+                        href={invoices.upcoming.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/15"
+                      >
+                        Invoice
+                      </a>
+                    ) : null}
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 md:justify-end">
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
                   <button
-                    onClick={() => setShowNextInvoice((v) => !v)}
-                    className="text-slate-300 underline-offset-2 hover:text-white hover:underline"
+                    onClick={() => setOpenInvoiceId((v) => (v === invoices?.upcoming?.id ? null : invoices?.upcoming?.id || null))}
+                    className="flex w-full items-center justify-between gap-3 bg-slate-950/20 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-950/30"
                   >
-                    {showNextInvoice ? "Hide" : "Show"} next invoice preview
+                    <div className="font-medium text-white">Breakdown</div>
+                    <div className="text-slate-300">{openInvoiceId === invoices?.upcoming?.id ? "Hide" : "Show"}</div>
                   </button>
-                  {showNextInvoice ? (
-                    <div className="font-semibold text-white">${(invoice.totalCents / 100).toFixed(2)}</div>
-                  ) : (
-                    <div className="font-semibold text-white">—</div>
-                  )}
+                  {openInvoiceId === invoices?.upcoming?.id ? (
+                    <div className="divide-y divide-white/10">
+                      {(invoices?.upcoming?.lines || []).map((l, idx) => (
+                        <div key={l.id || `${idx}`} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
+                          <div className="min-w-0 truncate text-slate-200">{l.name}</div>
+                          <div className="shrink-0 text-right font-semibold text-white">
+                            {l.amountCents == null ? "—" : fmtUsdCents(l.amountCents)}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between gap-4 bg-white/5 px-3 py-2 text-sm">
+                        <div className="text-slate-200">TOTAL</div>
+                        <div className="font-semibold text-white">
+                          {invoices?.upcoming?.totalCents == null ? "—" : fmtUsdCents(invoices.upcoming.totalCents)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-0 bg-white/5 px-3 py-2 text-xs text-slate-300">
-                <div>Line item</div>
-                <div className="text-right">Qty</div>
-                <div className="text-right">Amount</div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                <div className="grid grid-cols-4 gap-0 bg-slate-950/20 px-3 py-2 text-xs text-slate-300">
+                  <div>Invoice</div>
+                  <div>Created</div>
+                  <div className="text-right">Amount</div>
+                  <div className="text-right">Status</div>
+                </div>
+                <div className="divide-y divide-white/10">
+                  {(invoices?.history || []).map((inv: BillingInvoice) => (
+                    <div key={inv.id} className="px-3 py-2">
+                      <button
+                        onClick={() => setOpenInvoiceId((v) => (v === inv.id ? null : inv.id))}
+                        className="grid w-full grid-cols-4 gap-0 text-left text-sm"
+                      >
+                        <div className="text-slate-200">{inv.number || inv.id}</div>
+                        <div className="text-slate-300">{fmtDate(inv.issuedAtMs || inv.createdAtMs)}</div>
+                        <div className="text-right font-semibold text-white">
+                          {inv.totalCents == null ? "—" : fmtUsdCents(inv.totalCents)}
+                        </div>
+                        <div className="text-right text-slate-300">{inv.status || "—"}</div>
+                      </button>
+                      {openInvoiceId === inv.id ? (
+                        <div className="mt-2 overflow-hidden rounded-2xl border border-white/10">
+                          <div className="divide-y divide-white/10">
+                            {(inv.lines || []).map((l, idx) => (
+                              <div key={l.id || `${idx}`} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
+                                <div className="min-w-0 truncate text-slate-200">{l.name}</div>
+                                <div className="shrink-0 text-right font-semibold text-white">
+                                  {l.amountCents == null ? "—" : fmtUsdCents(l.amountCents)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                  {(invoices?.history || []).length === 0 ? (
+                    <div className="px-3 py-3 text-sm text-slate-300">No past invoices yet.</div>
+                  ) : null}
+                </div>
               </div>
-              <div className="divide-y divide-white/10">
-                {(showNextInvoice ? invoice.lines : invoice.lines.filter((l) => Boolean(l.proration))).map((l) => (
-                  <div key={l.id} className="grid grid-cols-3 gap-0 px-3 py-2 text-sm">
-                    <div className="text-slate-200">{l.description}</div>
-                    <div className="text-right text-slate-300">{l.quantity == null ? "—" : l.quantity}</div>
-                    <div className="text-right font-semibold text-white">${(l.amountCents / 100).toFixed(2)}</div>
-                  </div>
-                ))}
-                {showNextInvoice ? (
-                  <div className="grid grid-cols-3 gap-0 bg-white/5 px-3 py-2 text-sm">
-                    <div className="text-slate-200">TOTAL</div>
-                    <div />
-                    <div className="text-right font-semibold text-white">${invoice.totalUsd.toFixed(2)}</div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs text-slate-400">Stripe preview (optional)</div>
+                <div className="mt-1 text-sm text-slate-300">
+                  Stripe previews can include next month subscription charges; OpenMeter is the source of truth in this UI.
+                </div>
+                {invoice ? (
+                  <div className="mt-3 text-sm text-slate-200">
+                    Stripe upcoming invoice total: <span className="font-semibold text-white">{fmtUsdCents(invoice.totalCents)}</span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-0 bg-white/5 px-3 py-2 text-sm">
-                    <div className="text-slate-200">TOTAL (due now)</div>
-                    <div />
-                    <div className="text-right font-semibold text-white">
-                      ${(Number(invoice.dueNowCents || 0) / 100).toFixed(2)}
-                    </div>
-                  </div>
+                  <div className="mt-3 text-sm text-slate-300">No Stripe preview loaded.</div>
                 )}
               </div>
-              {!invoice.sums.matchesTotal ? (
-                <div className="px-3 py-2 text-xs text-rose-200">
-                  Display error: line item sum does not match Stripe total. Please refresh and contact support if this persists.
-                </div>
-              ) : null}
             </div>
           ) : (
-            <div className="mt-4 text-sm text-slate-300">No invoice loaded yet.</div>
+            <div className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs text-slate-400">This month so far</div>
+                  <div className="mt-1 text-2xl font-semibold text-white">
+                    {usage ? `$${Number(usage.totalUsd || 0).toFixed(2)}` : "—"}
+                  </div>
+                </div>
+                <Button variant="secondary" onClick={() => void loadUsage()}>
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs text-slate-400">Usage breakdown</div>
+                <div className="mt-2 space-y-2 text-sm">
+                  {(usage?.lines || []).map((l) => (
+                    <div key={`usage-${l.key}`} className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 truncate text-slate-200">{l.description}</div>
+                      <div className="shrink-0 text-right text-slate-200">
+                        {l.quantity != null ? (
+                          <>
+                            <span className="font-semibold">{Number(l.quantity || 0).toFixed(3).replace(/\.?0+$/, "")}</span>{" "}
+                            <span className="text-slate-400">{l.unit}</span>
+                          </>
+                        ) : l.amountCents != null ? (
+                          <>
+                            <span className="font-semibold">{fmtUsdCents(l.amountCents)}</span>{" "}
+                            <span className="text-slate-400">so far</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {(usage?.lines || []).length === 0 ? <div className="text-sm text-slate-300">No usage reported yet.</div> : null}
+                </div>
+              </div>
+            </div>
           )}
         </Card>
       )}

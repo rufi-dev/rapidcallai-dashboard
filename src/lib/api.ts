@@ -175,6 +175,38 @@ export type BillingUsageSummaryResponse = {
   lines: BillingUsageSummaryLine[];
 };
 
+export type BillingInvoiceLine = {
+  id: string | null;
+  name: string;
+  quantity: number | null;
+  amountCents: number | null;
+  amountUsd: number | null;
+  details: any;
+};
+
+export type BillingInvoice = {
+  id: string;
+  number: string | null;
+  status: string | null; // "gathering" (upcoming) or "issued" (history) etc
+  currency: string;
+  createdAtMs: number | null;
+  issuedAtMs: number | null;
+  periodFromMs: number | null;
+  periodToMs: number | null;
+  totalCents: number | null;
+  totalUsd: number | null;
+  url: string | null;
+  lines: BillingInvoiceLine[];
+};
+
+export type BillingInvoicesResponse = {
+  ok: true;
+  skipped?: boolean;
+  reason?: string;
+  upcoming: BillingInvoice | null;
+  history: BillingInvoice[];
+};
+
 export type MetricsSnapshot = {
   // basic webrtc-ish metrics we store today
   latency?: {
@@ -525,6 +557,12 @@ export async function getBillingUsageSummary(): Promise<BillingUsageSummaryRespo
   const res = await apiFetch(`/api/billing/usage-summary`);
   if (!res.ok) throw new Error(`getBillingUsageSummary failed: ${await readError(res)}`);
   return (await res.json()) as BillingUsageSummaryResponse;
+}
+
+export async function getBillingInvoices(): Promise<BillingInvoicesResponse> {
+  const res = await apiFetch(`/api/billing/invoices`);
+  if (!res.ok) throw new Error(`getBillingInvoices failed: ${await readError(res)}`);
+  return (await res.json()) as BillingInvoicesResponse;
 }
 
 export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {
