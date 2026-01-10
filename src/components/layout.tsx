@@ -14,7 +14,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
-import { getBillingStatus, getMe, logout, type BillingStatus } from "../lib/api";
+import { getBillingStatus, getBillingUsageSummary, getMe, logout, type BillingStatus, type BillingUsageSummaryResponse } from "../lib/api";
 import { HeaderSlotProvider, useHeaderSlots } from "./headerSlots";
 
 function NavItem(props: { to: string; icon: React.ReactNode; label: string }) {
@@ -86,6 +86,7 @@ export function AppShell() {
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
+  const [usageSummary, setUsageSummary] = useState<BillingUsageSummaryResponse | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
 
@@ -112,10 +113,28 @@ export function AppShell() {
         if (!mounted) return;
         setBillingStatus(null);
       });
+
+    // Best-effort: show "this month so far" estimate (from OpenMeter usage) in the Plan popover.
+    getBillingUsageSummary()
+      .then((sum) => {
+        if (!mounted) return;
+        setUsageSummary(sum);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setUsageSummary(null);
+      });
     return () => {
       mounted = false;
     };
   }, []);
+
+  const planLabel =
+    !billingStatus
+      ? "Plan"
+      : billingStatus.mode === "trial"
+        ? "Free plan"
+        : "Pay as you go";
 
   return (
     <HeaderSlotProvider>
@@ -156,7 +175,7 @@ export function AppShell() {
                     <div className="text-brand-200">
                       <CheckCircle2 size={18} />
                     </div>
-                    <div className="truncate font-medium text-white">Plan</div>
+                    <div className="truncate font-medium text-white">{planLabel}</div>
                   </div>
                   <div className="text-slate-400">
                     <ChevronDown size={18} className={planOpen ? "rotate-180 transition" : "transition"} />
@@ -167,13 +186,15 @@ export function AppShell() {
                   <div className="absolute bottom-[52px] left-0 w-full rounded-2xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-slate-300">Billing</div>
+                        <div className="text-slate-300">{planLabel}</div>
                         <div className="font-semibold text-white">
                           {!billingStatus
                             ? "Not configured"
                             : billingStatus.mode === "trial"
-                              ? `Trial ($${billingStatus.trial.creditUsd.toFixed(2)})`
-                              : "Paid"}
+                              ? `$${billingStatus.trial.creditUsd.toFixed(2)} credits`
+                              : usageSummary
+                                ? `This month so far: $${usageSummary.totalUsd.toFixed(2)}`
+                                : "This month so far: —"}
                         </div>
                       </div>
                       <div className="flex items-center justify-between gap-3">

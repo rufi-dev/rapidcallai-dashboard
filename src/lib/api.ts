@@ -154,6 +154,27 @@ export type UpcomingInvoiceResponse = {
   sums: { linesCents: number; matchesTotal: boolean };
 };
 
+export type BillingUsageSummaryLine = {
+  key: "voice_base_minutes" | "voice_model_upgrade_minutes" | "telephony_minutes" | "llm_token_overage_1k" | string;
+  description: string;
+  unit: string;
+  quantity: number;
+  unitAmountCents: number | null;
+  amountCents: number | null;
+  priceId: string | null;
+};
+
+export type BillingUsageSummaryResponse = {
+  ok: true;
+  skipped?: boolean;
+  reason?: string;
+  periodStartMs: number | null;
+  periodEndMs: number | null;
+  totalCents: number;
+  totalUsd: number;
+  lines: BillingUsageSummaryLine[];
+};
+
 export type MetricsSnapshot = {
   // basic webrtc-ish metrics we store today
   latency?: {
@@ -498,6 +519,12 @@ export async function getUpcomingInvoice(): Promise<UpcomingInvoiceResponse> {
   const res = await apiFetch(`/api/billing/upcoming-invoice`);
   if (!res.ok) throw new Error(`getUpcomingInvoice failed: ${await readError(res)}`);
   return (await res.json()) as UpcomingInvoiceResponse;
+}
+
+export async function getBillingUsageSummary(): Promise<BillingUsageSummaryResponse> {
+  const res = await apiFetch(`/api/billing/usage-summary`);
+  if (!res.ok) throw new Error(`getBillingUsageSummary failed: ${await readError(res)}`);
+  return (await res.json()) as BillingUsageSummaryResponse;
 }
 
 export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {
