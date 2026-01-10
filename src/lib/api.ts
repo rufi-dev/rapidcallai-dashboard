@@ -111,6 +111,7 @@ export type BillingStatus = {
   isPaid: boolean;
   hasPaymentMethod: boolean;
   telephonyEnabled: boolean;
+  stripe?: { customerId: string | null; subscriptionId: string | null };
   trial: {
     creditUsd: number;
     approxMinutesRemaining: number;
@@ -468,6 +469,18 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   const res = await apiFetch(`/api/billing/status`);
   if (!res.ok) throw new Error(`getBillingStatus failed: ${await readError(res)}`);
   return (await res.json()) as BillingStatus;
+}
+
+export async function ensureStripeSubscription(): Promise<{
+  ok: true;
+  workspace: { id: string; stripeCustomerId: string | null; stripeSubscriptionId: string | null; stripePhoneNumbersItemId: string | null };
+}> {
+  const res = await apiFetch(`/api/billing/ensure-subscription`, { method: "POST" });
+  if (!res.ok) throw new Error(`ensureStripeSubscription failed: ${await readError(res)}`);
+  return (await res.json()) as {
+    ok: true;
+    workspace: { id: string; stripeCustomerId: string | null; stripeSubscriptionId: string | null; stripePhoneNumbersItemId: string | null };
+  };
 }
 
 export async function startBillingUpgrade(): Promise<{ ok: true; url: string }> {

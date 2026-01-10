@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Button, Card } from "../components/ui";
-import { getBillingStatus, getUpcomingInvoice, startBillingUpgrade, type BillingStatus, type UpcomingInvoiceResponse } from "../lib/api";
+import {
+  ensureStripeSubscription,
+  getBillingStatus,
+  getUpcomingInvoice,
+  startBillingUpgrade,
+  type BillingStatus,
+  type UpcomingInvoiceResponse,
+} from "../lib/api";
 import { toast } from "sonner";
 
 export function BillingPage() {
@@ -8,6 +15,7 @@ export function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<UpcomingInvoiceResponse | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [setupLoading, setSetupLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -48,6 +56,21 @@ export function BillingPage() {
       setInvoice(null);
     } finally {
       setInvoiceLoading(false);
+    }
+  }
+
+  async function ensureSubscriptionAndReload() {
+    setSetupLoading(true);
+    try {
+      await ensureStripeSubscription();
+      const s = await getBillingStatus();
+      setStatus(s);
+      await loadUpcomingInvoice();
+      toast.success("Stripe subscription configured");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to configure Stripe subscription");
+    } finally {
+      setSetupLoading(false);
     }
   }
 
@@ -110,10 +133,26 @@ export function BillingPage() {
             <div>
               <div className="text-sm font-semibold text-white">Paid</div>
               <div className="mt-1 text-sm text-slate-300">Upcoming invoice line items come directly from Stripe.</div>
+              {!status?.stripe?.subscriptionId ? (
+                <div className="mt-2 text-xs text-amber-200">
+                  Stripe subscription not configured for this workspace yet. Click “Fix billing setup”.
+                </div>
+              ) : null}
             </div>
-            <Button variant="secondary" onClick={() => void loadUpcomingInvoice()} disabled={invoiceLoading}>
-              {invoiceLoading ? "Loading…" : "Load upcoming invoice"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {!status?.stripe?.subscriptionId ? (
+                <Button variant="secondary" onClick={() => void ensureSubscriptionAndReload()} disabled={setupLoading}>
+                  {setupLoading ? "Fixing…" : "Fix billing setup"}
+                </Button>
+              ) : null}
+              <Button
+                variant="secondary"
+                onClick={() => void loadUpcomingInvoice()}
+                disabled={invoiceLoading || !status?.stripe?.subscriptionId}
+              >
+                {invoiceLoading ? "Loading…" : "Load upcoming invoice"}
+              </Button>
+            </div>
           </div>
 
           {invoice ? (
