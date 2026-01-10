@@ -95,7 +95,6 @@ export type AnalyticsTotals = {
   completedCallCount: number;
   avgDurationSec: number | null;
   avgLatencyMs: number | null;
-  totalCostUsd: number | null;
   totalTokens: number | null;
 };
 
@@ -105,86 +104,48 @@ export type AnalyticsSeriesPoint = {
   minutes: number;
 };
 
-export type BillingSummary = {
-  currency: "USD";
-  periodStartMs: number;
-  periodEndMs: number;
-  upcomingInvoiceUsd: number | null;
-  breakdown:
-    | null
-    | {
-        llmUsd: number;
-        sttUsd: number;
-        ttsUsd: number;
-        platformUsageUsd?: number;
-        phoneNumbersUsd?: number;
-        platformBaseUsd?: number;
-      };
-  otherUsd?: number | null;
-  fixedFees?: {
-    phoneNumbersCount: number;
+export type BillingStatus = {
+  workspaceId: string;
+  mode: "trial" | "paid";
+  isTrial: boolean;
+  isPaid: boolean;
+  hasPaymentMethod: boolean;
+  telephonyEnabled: boolean;
+  trial: {
+    creditUsd: number;
+    approxMinutesRemaining: number;
+    allowPstn: boolean;
+    allowNumberPurchase: boolean;
+  };
+  pricing: {
+    baseUsdPerMin: number;
+    defaultLlmModel: string;
+    includedTokensPerMin: number;
+    tokenOverageUsdPer1K: number;
+    llmSurchargeUsdPerMinByModel: Record<string, number>;
+    telephonyUsdPerMin: number;
+    telephonyMarkupRate: number;
     phoneNumberMonthlyFeeUsd: number;
-    platformMonthlyFeeUsd: number;
-  };
-  usageTotals: {
-    llmPromptTokens: number;
-    llmPromptCachedTokens: number;
-    llmCompletionTokens: number;
-    sttAudioSeconds: number;
-    ttsCharacters: number;
-  };
-  pricingConfigured: {
-    llm: boolean;
-    stt: boolean;
-    tts: boolean;
-    telephony?: boolean;
-    livekit?: boolean;
-  };
-
-  // New: minute-normalized, complete cost model (COGS + Retail + Fixed fees)
-  totals?: {
-    calls: number;
-    callMinutes: number;
-    participantMinutes: number;
-    participantMinutesEstimated?: number;
-    livekitWebhookCalls?: number;
-    billedSeconds: number;
-    cogs: {
-      totalUsd: number;
-      totalUsdPerMin: number;
-      breakdownUsd: Record<string, number>;
-      breakdownUsdPerMin: Record<string, number>;
-    };
-    retail: {
-      totalUsd: number;
-      totalUsdPerMin: number;
-      breakdownUsd: Record<string, number>;
-      breakdownUsdPerMin: Record<string, number>;
-      method?: string;
-      impliedGrossMarginRate?: number | null;
-      recommendedRetailUsdPerMin?: number;
-    };
-    fixedFees: {
-      totalUsd: number;
-      totalUsdPerMin: number;
-      phoneNumbersUsd: number;
-      platformBaseUsd: number;
-    };
   };
 };
 
-export type BillingCatalog = {
-  source: "default" | "env" | string;
-  llmModels: Array<{
-    id: string;
-    inputUsdPer1M: number | null;
-    cachedInputUsdPer1M: number | null;
-    outputUsdPer1M: number | null;
-  }>;
-  stt?: { fallbackUsdPerMin?: number | null };
-  tts?: { fallbackUsdPer1KChars?: number | null };
-  retail?: { markupMultiplier?: number };
-  docs?: { openaiPricing?: string };
+export type UpcomingInvoiceLine = {
+  id: string;
+  description: string;
+  amountCents: number;
+  quantity: number | null;
+  unitAmountCents: number | null;
+  priceId: string | null;
+  periodStart: number | null;
+  periodEnd: number | null;
+};
+
+export type UpcomingInvoiceResponse = {
+  currency: string;
+  totalCents: number;
+  totalUsd: number;
+  lines: UpcomingInvoiceLine[];
+  sums: { linesCents: number; matchesTotal: boolean };
 };
 
 export type MetricsSnapshot = {
@@ -203,30 +164,6 @@ export type MetricsSnapshot = {
     stt_audio_duration?: number;
     tts_characters_count?: number;
   };
-};
-
-export type BillingUsagePoint = {
-  t: number; // bucket start (ms)
-  callMinutes: number;
-  participantMinutes?: number;
-  cogsUsd?: number;
-  retailUsd?: number;
-  phoneNumbersUsd: number;
-  platformBaseUsd: number;
-  totalUsd: number;
-};
-
-export type BillingUsageResponse = {
-  range: { from: number; to: number; tz: string };
-  bucket: "day" | "week";
-  series: BillingUsagePoint[];
-  totals: Omit<BillingUsagePoint, "t"> & {
-    calls: number;
-    billedCallMinutes?: number;
-    cogsBreakdownUsd?: Record<string, number>;
-    retailBreakdownUsd?: Record<string, number>;
-  };
-  debug?: { topLongestCalls?: Array<Record<string, unknown>> };
 };
 
 export type AgentUsageSummary = {
@@ -250,7 +187,6 @@ export type AgentAnalytics = {
     callId: string;
     endedAt: number | null;
     durationSec: number | null;
-    costUsd: number | null;
     tokensTotal: number | null;
     latencyMs: number | null;
   };
@@ -528,31 +464,22 @@ export async function getAnalyticsRange(input: {
   return (await res.json()) as { range: { from: number; to: number; tz: string }; totals: AnalyticsTotals; series: AnalyticsSeriesPoint[] };
 }
 
-export async function getBillingSummary(): Promise<BillingSummary> {
-  const res = await apiFetch(`/api/billing/summary`);
-  if (!res.ok) throw new Error(`getBillingSummary failed: ${await readError(res)}`);
-  return (await res.json()) as BillingSummary;
+export async function getBillingStatus(): Promise<BillingStatus> {
+  const res = await apiFetch(`/api/billing/status`);
+  if (!res.ok) throw new Error(`getBillingStatus failed: ${await readError(res)}`);
+  return (await res.json()) as BillingStatus;
 }
 
-export async function getBillingCatalog(): Promise<BillingCatalog> {
-  const res = await apiFetch(`/api/billing/catalog`);
-  if (!res.ok) throw new Error(`getBillingCatalog failed: ${await readError(res)}`);
-  return (await res.json()) as BillingCatalog;
+export async function startBillingUpgrade(): Promise<{ ok: true; url: string }> {
+  const res = await apiFetch(`/api/billing/upgrade`, { method: "POST" });
+  if (!res.ok) throw new Error(`startBillingUpgrade failed: ${await readError(res)}`);
+  return (await res.json()) as { ok: true; url: string };
 }
 
-export async function getBillingUsage(input: {
-  from: number;
-  to: number;
-  bucket: "day" | "week";
-}): Promise<BillingUsageResponse> {
-  const qs = new URLSearchParams({
-    from: String(input.from),
-    to: String(input.to),
-    bucket: input.bucket,
-  });
-  const res = await apiFetch(`/api/billing/usage?${qs.toString()}`);
-  if (!res.ok) throw new Error(`getBillingUsage failed: ${await readError(res)}`);
-  return (await res.json()) as BillingUsageResponse;
+export async function getUpcomingInvoice(): Promise<UpcomingInvoiceResponse> {
+  const res = await apiFetch(`/api/billing/upcoming-invoice`);
+  if (!res.ok) throw new Error(`getUpcomingInvoice failed: ${await readError(res)}`);
+  return (await res.json()) as UpcomingInvoiceResponse;
 }
 
 export async function getCallRecordingUrl(id: string): Promise<{ url: string }> {

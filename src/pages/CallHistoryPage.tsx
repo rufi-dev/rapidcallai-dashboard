@@ -219,19 +219,18 @@ export function CallHistoryPage() {
                 <th className="px-3 py-3 font-medium">To</th>
                 <th className="px-3 py-3 font-medium">Duration</th>
                 <th className="px-3 py-3 font-medium">Outcome</th>
-                <th className="px-3 py-3 font-medium text-right">Cost</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-300">
+                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
                     Loading…
                   </td>
                 </tr>
               ) : calls.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-sm text-slate-300">
+                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
                     No calls yet. Start a Talk session and you’ll see it here.
                   </td>
                 </tr>
@@ -250,9 +249,6 @@ export function CallHistoryPage() {
                     <td className="px-3 py-3 text-slate-300">{formatDuration(c.durationSec)}</td>
                     <td className="px-3 py-3">
                       <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-200">{c.outcome}</span>
-                    </td>
-                    <td className="px-3 py-3 text-right text-slate-200">
-                      {typeof c.costUsd === "number" ? `$${c.costUsd.toFixed(2)}` : "—"}
                     </td>
                   </tr>
                 ))

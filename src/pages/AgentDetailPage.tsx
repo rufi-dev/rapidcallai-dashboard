@@ -11,15 +11,11 @@ import {
   endCall,
   getAgent,
   getAgentAnalytics,
-  getBillingCatalog,
-  getAgentUsageSummary,
   previewTts,
   startAgent,
   updateAgent,
   type AgentAnalytics,
   type AgentProfile,
-  type AgentUsageSummary,
-  type BillingCatalog,
   type CallTranscriptItem,
   type StartResponse,
 } from "../lib/api";
@@ -349,8 +345,6 @@ export function AgentDetailPage() {
   const [publishing, setPublishing] = useState(false);
 
   const [llmModel, setLlmModel] = useState<string>("");
-  const [billingCatalog, setBillingCatalog] = useState<BillingCatalog | null>(null);
-  const [usageSummary, setUsageSummary] = useState<AgentUsageSummary | null>(null);
 
   const [welcomeMode, setWelcomeMode] = useState<"ai" | "user">("user");
   const [aiMessageMode, setAiMessageMode] = useState<"dynamic" | "custom">("dynamic");
@@ -386,97 +380,13 @@ export function AgentDetailPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    getBillingCatalog()
-      .then((c) => {
-        if (!mounted) return;
-        setBillingCatalog(c);
-      })
-      .catch(() => {
-        // non-fatal
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!agentId) return;
-    let mounted = true;
-    getAgentUsageSummary(agentId)
-      .then((u) => {
-        if (!mounted) return;
-        setUsageSummary(u);
-      })
-      .catch(() => {
-        // non-fatal
-        if (!mounted) return;
-        setUsageSummary(null);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [agentId]);
-
-  function fmtMoneyPerMin(v: number | null): string {
-    if (v == null || !Number.isFinite(v)) return "—/min";
-    if (v < 0.0001) return `$${v.toFixed(6)}/min`;
-    if (v < 0.001) return `$${v.toFixed(4)}/min`;
-    if (v < 0.01) return `$${v.toFixed(3)}/min`;
-    return `$${v.toFixed(2)}/min`;
-  }
-
-  function voiceMinutes(): number {
-    const sttSec = Number(usageSummary?.totals?.sttAudioSeconds ?? 0);
-    const sttMin = sttSec > 0 ? sttSec / 60 : 0;
-    if (Number.isFinite(sttMin) && sttMin > 0) return sttMin;
-    const m = Number(usageSummary?.totals?.minutes ?? 0);
-    return Number.isFinite(m) && m > 0 ? m : 0;
-  }
-
-  function computeLlmUsdPerMin(modelId: string): number | null {
-    const rec = billingCatalog?.llmModels?.find((m) => m.id === modelId);
-    if (!rec) return null;
-    const minutes = voiceMinutes();
-    if (!Number.isFinite(minutes) || minutes <= 0) return null;
-
-    const inPerMin = (usageSummary?.totals.llmPromptTokens ?? 0) / minutes;
-    const cachedPerMin = (usageSummary?.totals.llmPromptCachedTokens ?? 0) / minutes;
-    const outPerMin = (usageSummary?.totals.llmCompletionTokens ?? 0) / minutes;
-
-    const input = rec.inputUsdPer1M == null ? null : rec.inputUsdPer1M;
-    const cached = rec.cachedInputUsdPer1M == null ? 0 : rec.cachedInputUsdPer1M;
-    const output = rec.outputUsdPer1M == null ? null : rec.outputUsdPer1M;
-    if (input == null || output == null) return null;
-
-    const cogs = (input * inPerMin + cached * cachedPerMin + output * outPerMin) / 1_000_000;
-    const m = Number(billingCatalog?.retail?.markupMultiplier ?? 1);
-    const retail = cogs * (Number.isFinite(m) && m > 0 ? m : 1);
-    return retail;
-  }
-
-  function computeTotalUsdPerMin(modelId: string): number | null {
-    const minutes = voiceMinutes();
-    if (!Number.isFinite(minutes) || minutes <= 0) return null;
-
-    const markup = Number(billingCatalog?.retail?.markupMultiplier ?? 1);
-    const m = Number.isFinite(markup) && markup > 0 ? markup : 1;
-
-    const llm = computeLlmUsdPerMin(modelId) ?? 0;
-
-    const sttBase = Number(billingCatalog?.stt?.fallbackUsdPerMin ?? 0);
-    const stt = Number.isFinite(sttBase) && sttBase > 0 ? sttBase * m : 0;
-
-    const ttsPer1k = Number(billingCatalog?.tts?.fallbackUsdPer1KChars ?? 0);
-    const charsPerMin = (Number(usageSummary?.totals?.ttsCharacters ?? 0) || 0) / minutes;
-    const tts =
-      Number.isFinite(ttsPer1k) && ttsPer1k > 0 && Number.isFinite(charsPerMin) && charsPerMin > 0
-        ? ((charsPerMin / 1000) * ttsPer1k) * m
-        : 0;
-
-    return llm + stt + tts;
-  }
+  const LLM_MODEL_OPTIONS = [
+    "gpt-5-mini",
+    "gpt-5",
+    "gpt-5.2",
+    "gpt-4.1",
+    "gpt-4o",
+  ];
 
   function LlmModelDropdown(props: {
     value: string;
@@ -498,17 +408,13 @@ export function AgentDetailPage() {
     }, []);
 
     const options = useMemo(() => {
-      const rows = (billingCatalog?.llmModels ?? []).map((m) => {
-        const usdPerMin = computeTotalUsdPerMin(m.id);
-        return { id: m.id, label: m.id.replaceAll("-", " "), usdPerMin };
-      });
+      const rows = LLM_MODEL_OPTIONS.map((id) => ({ id, label: id.replaceAll("-", " ") }));
       const needle = q.trim().toLowerCase();
       if (!needle) return rows;
       return rows.filter((r) => r.id.toLowerCase().includes(needle) || r.label.toLowerCase().includes(needle));
-    }, [billingCatalog, q, usageSummary]);
+    }, [q]);
 
     const selectedId = props.value;
-    const selectedUsdPerMin = selectedId ? computeTotalUsdPerMin(selectedId) : null;
 
     return (
       <div ref={boxRef} className="relative">
@@ -519,10 +425,9 @@ export function AgentDetailPage() {
           <div className="min-w-0">
             <div className="truncate font-medium">
               {selectedId ? selectedId : "Default"}
-              <span className="ml-2 text-xs text-slate-400">{selectedId ? fmtMoneyPerMin(selectedUsdPerMin) : ""}</span>
             </div>
             <div className="mt-0.5 text-xs text-slate-500">
-              {voiceMinutes() > 0 ? `Based on ${voiceMinutes().toFixed(1)} mins voice usage` : "No usage yet (need calls to estimate $/min)"}
+              This sets the LLM model used by this agent.
             </div>
           </div>
           <div className="text-slate-400">
@@ -574,10 +479,7 @@ export function AgentDetailPage() {
                   >
                     <div className="min-w-0">
                       <div className="truncate font-medium">{opt.id}</div>
-                      <div className="text-xs text-slate-500">
-                        {fmtMoneyPerMin(opt.usdPerMin)}{" "}
-                        {billingCatalog?.retail?.markupMultiplier && billingCatalog.retail.markupMultiplier > 1 ? `• retail` : ""}
-                      </div>
+                      <div className="text-xs text-slate-500">{opt.label}</div>
                     </div>
                     {selectedId === opt.id ? <Check size={16} className="text-brand-300" /> : null}
                   </button>
@@ -786,11 +688,10 @@ export function AgentDetailPage() {
     const name = agent?.name ?? "Agent";
     const latest = agentAnalytics?.latest;
     const headerStats =
-      latest && (latest.latencyMs != null || latest.tokensTotal != null || latest.costUsd != null)
+      latest && (latest.latencyMs != null || latest.tokensTotal != null)
         ? [
             latest.latencyMs != null ? `Latency ${Math.round(latest.latencyMs)}ms` : null,
             latest.tokensTotal != null ? `Tokens ${latest.tokensTotal.toLocaleString()}` : null,
-            typeof latest.costUsd === "number" ? `Cost $${latest.costUsd.toFixed(4)}` : null,
           ]
             .filter(Boolean)
             .join(" • ")
@@ -863,7 +764,6 @@ export function AgentDetailPage() {
     agentAnalytics?.latest?.callId,
     agentAnalytics?.latest?.latencyMs,
     agentAnalytics?.latest?.tokensTotal,
-    agentAnalytics?.latest?.costUsd,
     isDirty,
     saving,
     publishing,
@@ -958,13 +858,8 @@ export function AgentDetailPage() {
                   <div>
                     <div className="text-sm font-semibold">LLM</div>
                     <div className="mt-1 text-xs text-slate-400">
-                      Persisted per agent. Pricing shown as <span className="text-slate-200">$/min</span> for voice UX.
+                      Persisted per agent.
                     </div>
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {billingCatalog?.retail?.markupMultiplier && billingCatalog.retail.markupMultiplier > 1
-                      ? `Retail markup ×${billingCatalog.retail.markupMultiplier}`
-                      : ""}
                   </div>
                 </div>
 
@@ -972,16 +867,6 @@ export function AgentDetailPage() {
                   <div>
                     <div className="mb-1 text-xs text-slate-400">Model</div>
                     <LlmModelDropdown value={llmModel} onChange={setLlmModel} />
-                  </div>
-
-                  <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs text-slate-400">Current estimate</div>
-                    <div className="mt-2 text-2xl font-semibold text-white">
-                      {llmModel ? fmtMoneyPerMin(computeTotalUsdPerMin(llmModel)) : "—"}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      Estimated total voice cost (LLM + STT + TTS) per minute based on this agent’s usage.
-                    </div>
                   </div>
                 </div>
               </div>

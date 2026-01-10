@@ -156,8 +156,8 @@ export function AnalyticsPage() {
           hint={`Avg turn latency (EOU + LLM TTFT) • ${rangeLabel}`}
         />
         <Stat
-          label="Total cost"
-          value={typeof totals?.totalCostUsd === "number" ? `$${totals.totalCostUsd.toFixed(4)}` : loading ? "…" : "—"}
+          label="Total tokens"
+          value={typeof totals?.totalTokens === "number" ? String(totals.totalTokens) : loading ? "…" : "—"}
           hint={`Completed calls • ${rangeLabel}`}
         />
       </div>

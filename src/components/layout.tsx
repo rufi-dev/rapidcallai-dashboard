@@ -14,7 +14,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
-import { getBillingSummary, getMe, logout, type BillingSummary } from "../lib/api";
+import { getMe, logout } from "../lib/api";
 import { HeaderSlotProvider, useHeaderSlots } from "./headerSlots";
 
 function NavItem(props: { to: string; icon: React.ReactNode; label: string }) {
@@ -87,8 +87,6 @@ export function AppShell() {
   const [userEmail, setUserEmail] = useState<string>("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
-  const [billing, setBilling] = useState<BillingSummary | null>(null);
-  const [billingErr, setBillingErr] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -101,24 +99,6 @@ export function AppShell() {
       })
       .catch(() => {
         // ignore; RequireAuth handles redirects
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    getBillingSummary()
-      .then((b) => {
-        if (!mounted) return;
-        setBilling(b);
-        setBillingErr(null);
-      })
-      .catch((e) => {
-        if (!mounted) return;
-        setBilling(null);
-        setBillingErr(e instanceof Error ? e.message : "Failed to load billing");
       });
     return () => {
       mounted = false;
@@ -164,7 +144,7 @@ export function AppShell() {
                     <div className="text-brand-200">
                       <CheckCircle2 size={18} />
                     </div>
-                    <div className="truncate font-medium text-white">Pay As You Go</div>
+                    <div className="truncate font-medium text-white">Plan</div>
                   </div>
                   <div className="text-slate-400">
                     <ChevronDown size={18} className={planOpen ? "rotate-180 transition" : "transition"} />
@@ -175,61 +155,15 @@ export function AppShell() {
                   <div className="absolute bottom-[52px] left-0 w-full rounded-2xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-slate-300">Upcoming Invoice</div>
-                        <div className="font-semibold text-white">
-                          {billing?.upcomingInvoiceUsd != null ? `$${billing.upcomingInvoiceUsd.toFixed(2)}` : "—"}
-                        </div>
+                        <div className="text-slate-300">Billing</div>
+                        <div className="font-semibold text-white">Not configured</div>
                       </div>
-                      {billing?.breakdown ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                          <div className="flex items-center justify-between gap-3 text-xs">
-                            <div className="text-slate-400">LLM</div>
-                            <div className="font-medium text-slate-200">${billing.breakdown.llmUsd.toFixed(2)}</div>
-                          </div>
-                          <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                            <div className="text-slate-400">STT</div>
-                            <div className="font-medium text-slate-200">${billing.breakdown.sttUsd.toFixed(2)}</div>
-                          </div>
-                          <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                            <div className="text-slate-400">TTS</div>
-                            <div className="font-medium text-slate-200">${billing.breakdown.ttsUsd.toFixed(2)}</div>
-                          </div>
-                          {typeof billing.breakdown.phoneNumbersUsd === "number" && billing.breakdown.phoneNumbersUsd > 0 ? (
-                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                              <div className="text-slate-400">Phone numbers</div>
-                              <div className="font-medium text-slate-200">${billing.breakdown.phoneNumbersUsd.toFixed(2)}</div>
-                            </div>
-                          ) : null}
-                          {typeof billing.breakdown.platformUsageUsd === "number" && billing.breakdown.platformUsageUsd > 0 ? (
-                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                              <div className="text-slate-400">Platform usage</div>
-                              <div className="font-medium text-slate-200">${billing.breakdown.platformUsageUsd.toFixed(2)}</div>
-                            </div>
-                          ) : null}
-                          {typeof billing.breakdown.platformBaseUsd === "number" && billing.breakdown.platformBaseUsd > 0 ? (
-                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                              <div className="text-slate-400">Platform base</div>
-                              <div className="font-medium text-slate-200">${billing.breakdown.platformBaseUsd.toFixed(2)}</div>
-                            </div>
-                          ) : null}
-                          {typeof billing.otherUsd === "number" && billing.otherUsd > 0 ? (
-                            <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-                              <div className="text-slate-400">Other</div>
-                              <div className="font-medium text-slate-200">${billing.otherUsd.toFixed(2)}</div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-slate-300">Concurrency Used</div>
                         <div className="font-semibold text-white">0/20</div>
                       </div>
                       <div className="pt-2 text-xs text-slate-500">
-                        {billingErr
-                          ? `Billing unavailable: ${billingErr}`
-                          : billing && (!billing.pricingConfigured.llm || !billing.pricingConfigured.stt || !billing.pricingConfigured.tts)
-                            ? "Set LLM/STT/TTS pricing on the server to enable accurate usage-based billing."
-                            : "Estimated from usage; Stripe invoices will replace this later."}
+                        Billing is being rebuilt (Trial credits + Stripe + OpenMeter).
                       </div>
                     </div>
                   </div>

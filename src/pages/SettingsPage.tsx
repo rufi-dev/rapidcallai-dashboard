@@ -4,12 +4,14 @@ import { getMe } from "../lib/api";
 
 export function SettingsPage() {
   const [workspaceName, setWorkspaceName] = useState<string>("Workspace");
+  const [workspaceId, setWorkspaceId] = useState<string>("");
   useEffect(() => {
     let mounted = true;
     getMe()
       .then((m) => {
         if (!mounted) return;
         setWorkspaceName(m.workspace?.name || "Workspace");
+        setWorkspaceId(m.workspace?.id || "");
       })
       .catch(() => {});
     return () => {
@@ -30,6 +32,9 @@ export function SettingsPage() {
           <div className="mt-4 space-y-3 text-sm text-slate-300">
             <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
               Workspace: <span className="text-slate-100">{workspaceName}</span>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              Workspace ID: <span className="text-slate-100">{workspaceId || "—"}</span>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
               Region: <span className="text-slate-100">auto</span>

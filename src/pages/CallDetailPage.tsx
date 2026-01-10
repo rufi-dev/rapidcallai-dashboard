@@ -130,12 +130,6 @@ export function CallDetailPage() {
                 <div className="text-slate-100">{call.outcome}</div>
               </div>
               <div>
-                <div className="text-xs text-slate-400">Cost</div>
-                <div className="text-slate-100">
-                  {typeof call.costUsd === "number" ? `$${call.costUsd.toFixed(2)}` : "—"}
-                </div>
-              </div>
-              <div>
                 <div className="text-xs text-slate-400">Started</div>
                 <div className="text-slate-100">{fmtTs(call.startedAt)}</div>
               </div>
@@ -147,62 +141,6 @@ export function CallDetailPage() {
                 <div className="text-xs text-slate-400">Room</div>
                 <div className="text-slate-100 font-mono text-xs">{call.roomName}</div>
               </div>
-            </div>
-
-            <div>
-              <div className="text-sm font-semibold">Cost breakdown (USD and USD/min)</div>
-              {(() => {
-                const cost = (call as any)?.metrics?.cost;
-                const retail = cost?.retail;
-                const cogs = cost?.cogs;
-                const minutes = Number((call as any)?.metrics?.normalized?.callMinutes || (call.durationSec || 0) / 60 || 0);
-                if (!retail?.breakdownUsd || !cogs?.breakdownUsd) {
-                  return <div className="mt-2 text-sm text-slate-300">No detailed breakdown saved for this call yet.</div>;
-                }
-                const entries = Object.entries(retail.breakdownUsd as Record<string, number>)
-                  .map(([k, v]) => ({ k, usd: Number(v || 0) }))
-                  .filter((x) => x.usd > 0.000001)
-                  .sort((a, b) => b.usd - a.usd);
-                const denom = Math.max(0.0001, minutes);
-                return (
-                  <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
-                    <div className="grid grid-cols-4 gap-0 bg-white/5 px-3 py-2 text-xs text-slate-300">
-                      <div>Component</div>
-                      <div className="text-right">Retail</div>
-                      <div className="text-right">Retail / min</div>
-                      <div className="text-right">COGS</div>
-                    </div>
-                    <div className="divide-y divide-white/10">
-                      {entries.map((e) => {
-                        const c = Number((cogs.breakdownUsd?.[e.k] as any) || 0);
-                        return (
-                          <div key={e.k} className="grid grid-cols-4 gap-0 px-3 py-2 text-sm">
-                            <div className="text-slate-200">{e.k}</div>
-                            <div className="text-right font-semibold text-white">${e.usd.toFixed(4)}</div>
-                            <div className="text-right text-slate-200">${(e.usd / denom).toFixed(4)}</div>
-                            <div className="text-right text-slate-300">${c.toFixed(4)}</div>
-                          </div>
-                        );
-                      })}
-                      <div className="grid grid-cols-4 gap-0 px-3 py-2 text-sm bg-white/5">
-                        <div className="text-slate-200">Total</div>
-                        <div className="text-right font-semibold text-white">${Number(retail.totalUsd || 0).toFixed(4)}</div>
-                        <div className="text-right text-slate-200">${(Number(retail.totalUsd || 0) / denom).toFixed(4)}</div>
-                        <div className="text-right text-slate-300">${Number(cogs.totalUsd || 0).toFixed(4)}</div>
-                      </div>
-                    </div>
-                    <div className="px-3 py-2 text-xs text-slate-400">
-                      Method: <span className="text-slate-200">{String(retail.method || "—")}</span>
-                      {retail.impliedGrossMarginRate != null ? (
-                        <>
-                          {" "}
-                          · Implied margin: <span className="text-slate-200">{(Number(retail.impliedGrossMarginRate) * 100).toFixed(0)}%</span>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
 
             <div>
