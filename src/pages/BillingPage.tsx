@@ -259,6 +259,16 @@ export function BillingPage() {
                         </>
                       ) : null}
                     </div>
+                    {invoices?.upcoming?.externalIds?.invoicing ? (
+                      <div className="mt-1 text-xs text-slate-400">
+                        Synced to Stripe invoice:{" "}
+                        <span className="font-semibold text-slate-200">{String(invoices.upcoming.externalIds.invoicing)}</span>
+                      </div>
+                    ) : invoices?.upcoming?.validationIssues?.length ? (
+                      <div className="mt-2 text-xs text-rose-200">
+                        OpenMeter invoice has validation issues. Open the invoice in OpenMeter to see details.
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="secondary" onClick={() => void loadInvoices()}>

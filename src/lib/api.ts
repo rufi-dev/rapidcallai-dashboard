@@ -182,6 +182,7 @@ export type BillingInvoiceLine = {
   amountCents: number | null;
   amountUsd: number | null;
   details: any;
+  externalIds?: any;
 };
 
 export type BillingInvoice = {
@@ -197,6 +198,10 @@ export type BillingInvoice = {
   totalUsd: number | null;
   url: string | null;
   lines: BillingInvoiceLine[];
+  externalIds?: any;
+  statusDetails?: any;
+  validationIssues?: any;
+  workflow?: any;
 };
 
 export type BillingInvoicesResponse = {
