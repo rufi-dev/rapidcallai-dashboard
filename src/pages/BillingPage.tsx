@@ -199,8 +199,19 @@ export function BillingPage() {
                   <div key={`usage-${l.key}`} className="flex items-center justify-between gap-4">
                     <div className="min-w-0 truncate text-slate-200">{l.description}</div>
                     <div className="shrink-0 text-right text-slate-200">
-                      <span className="font-semibold">{Number(l.quantity || 0).toFixed(3).replace(/\.?0+$/, "")}</span>{" "}
-                      <span className="text-slate-400">{l.unit}</span>
+                      {l.quantity != null ? (
+                        <>
+                          <span className="font-semibold">{Number(l.quantity || 0).toFixed(3).replace(/\.?0+$/, "")}</span>{" "}
+                          <span className="text-slate-400">{l.unit}</span>
+                        </>
+                      ) : l.amountCents != null ? (
+                        <>
+                          <span className="font-semibold">${(Number(l.amountCents || 0) / 100).toFixed(2)}</span>{" "}
+                          <span className="text-slate-400">so far</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </div>
                   </div>
                 ))}

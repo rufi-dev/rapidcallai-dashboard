@@ -158,7 +158,7 @@ export type BillingUsageSummaryLine = {
   key: "voice_base_minutes" | "voice_model_upgrade_minutes" | "telephony_minutes" | "llm_token_overage_1k" | string;
   description: string;
   unit: string;
-  quantity: number;
+  quantity: number | null;
   unitAmountCents: number | null;
   amountCents: number | null;
   priceId: string | null;
