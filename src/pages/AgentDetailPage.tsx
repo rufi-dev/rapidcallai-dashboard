@@ -376,6 +376,7 @@ export function AgentDetailPage() {
   const [session, setSession] = useState<StartResponse | null>(null);
   const [starting, setStarting] = useState(false);
   const [agentReady, setAgentReady] = useState(false);
+  const [talkTimeoutMs, setTalkTimeoutMs] = useState<number | null>(null);
   const transcriptRef = useRef<CallTranscriptItem[]>([]);
   const endInFlightRef = useRef(false);
 
@@ -703,6 +704,7 @@ export function AgentDetailPage() {
       });
       setSession(s);
       setAgentReady(false);
+      setTalkTimeoutMs(Date.now() + 15000);
       transcriptRef.current = [];
       setPanelOpen(true);
       toast.success("Session started");
@@ -714,6 +716,30 @@ export function AgentDetailPage() {
       setStarting(false);
     }
   }
+
+  // If the agent doesn't join, don't spin forever—show a clear next step.
+  useEffect(() => {
+    if (!session?.roomName) return;
+    if (!talkTimeoutMs) return;
+    if (agentReady) return;
+    const msLeft = talkTimeoutMs - Date.now();
+    if (msLeft <= 0) {
+      const extra =
+        session.expectedAgentName
+          ? `Expected agent name: ${session.expectedAgentName}.`
+          : "No explicit agent name requested (dispatch rules should match the room name).";
+      setError(
+        `The agent did not join the room within 15 seconds. ${extra} ` +
+          `Check your LiveKit dispatch rules for the room prefix (LIVEKIT_WEB_ROOM_PREFIX) and ensure the cloud agent is deployed/running.`
+      );
+      return;
+    }
+    const t = window.setTimeout(() => {
+      // trigger re-run
+      setTalkTimeoutMs((v) => (v ? v : null));
+    }, Math.min(msLeft, 500));
+    return () => window.clearTimeout(t);
+  }, [session?.roomName, session?.expectedAgentName, talkTimeoutMs, agentReady]);
 
   async function finalizeCall(outcome: string) {
     if (!session?.callId) return;

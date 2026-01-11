@@ -30,6 +30,7 @@ export type StartResponse = {
   token: string;
   agent: { id: string; name: string };
   callId: string;
+  expectedAgentName?: string | null;
 };
 
 export type CallTranscriptItem = {
