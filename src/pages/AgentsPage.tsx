@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { createAgent, deleteAgent, generateAgentPrompt, listAgents, type AgentProfile } from "../lib/api";
 import { Button, Card, Input, Textarea } from "../components/ui";
 import { toast } from "sonner";
+import { FullScreenLoader, GlowSpinner, SectionLoader } from "../components/loading";
 import { Drawer } from "../components/Drawer";
 import { CheckCircle2, Sparkles, Wand2 } from "lucide-react";
 
@@ -318,7 +319,8 @@ export function AgentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <FullScreenLoader show={loading} title="Loading agents" subtitle="Fetching your agent library…">
+      <div className="space-y-6">
       <div className="flex items-end justify-between gap-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Agents</h1>
@@ -327,7 +329,7 @@ export function AgentsPage() {
           </p>
         </div>
         <Button onClick={refresh} variant="secondary">
-          Refresh
+          {loading ? <GlowSpinner label="Refreshing…" /> : "Refresh"}
         </Button>
       </div>
 
@@ -351,11 +353,15 @@ export function AgentsPage() {
               <Sparkles size={16} /> Generate
             </Button>
             <Button onClick={onCreate} disabled={!canCreate || creating}>
-              {creating ? "Creating…" : "Create"}
+              {creating ? <GlowSpinner label="Creating…" /> : "Create"}
             </Button>
           </div>
         </div>
       </Card>
+
+      {!loading && agents.length === 0 ? (
+        <SectionLoader title="No agents yet" subtitle="Create your first agent to get started." />
+      ) : null}
 
       <Drawer
         open={genOpen}
@@ -388,7 +394,7 @@ export function AgentsPage() {
                 className="rounded-xl bg-indigo-500/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
                 disabled={genStep === 3 || genAiBusy}
               >
-                {genAiBusy && genStep === 2 ? "Generating…" : "Next"}
+                {genAiBusy && genStep === 2 ? <GlowSpinner label="Generating…" /> : "Next"}
               </button>
             </div>
           </div>
@@ -595,7 +601,7 @@ export function AgentsPage() {
                     disabled={genAiBusy}
                     className="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 disabled:opacity-50"
                   >
-                    {genAiBusy ? "Regenerating…" : "Regenerate"}
+                    {genAiBusy ? <GlowSpinner label="Regenerating…" /> : "Regenerate"}
                   </button>
                 </div>
                 {genAiError ? (
@@ -614,7 +620,7 @@ export function AgentsPage() {
               </div>
 
               <Button onClick={createFromGenerator} disabled={genBusy || !generatedPrompt.trim()}>
-                <Wand2 size={16} /> {genBusy ? "Creating…" : "Create agent from Generate"}
+                <Wand2 size={16} /> {genBusy ? <GlowSpinner label="Creating…" /> : "Create agent from Generate"}
               </Button>
             </div>
           ) : null}
@@ -625,9 +631,7 @@ export function AgentsPage() {
         <div className="mb-3 flex items-end justify-between">
           <div>
             <div className="text-lg font-semibold">Your agents</div>
-            <div className="text-sm text-slate-300">
-              {loading ? "Loading…" : `${agents.length} saved`}
-            </div>
+            <div className="text-sm text-slate-300">{loading ? <GlowSpinner label="Loading…" /> : `${agents.length} saved`}</div>
           </div>
         </div>
 
@@ -670,6 +674,7 @@ export function AgentsPage() {
         </div>
       </div>
     </div>
+    </FullScreenLoader>
   );
 }
 

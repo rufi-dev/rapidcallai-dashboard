@@ -5,6 +5,7 @@ import "@livekit/components-styles";
 import { Check, ChevronDown, ClipboardCopy, CloudUpload, Mic, MicOff, Play, Save, Search, Undo2, Wand2 } from "lucide-react";
 import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment } from "livekit-client";
 import { toast } from "sonner";
+import { GlowSpinner } from "../components/loading";
 
 import { Button, Card, Textarea } from "../components/ui";
 import {
@@ -841,7 +842,7 @@ export function AgentDetailPage() {
                 <div className="text-lg font-semibold">Prompt</div>
                 <div className="text-sm text-slate-300">Edit your agent prompt.</div>
               </div>
-                <div className="text-xs text-slate-400">{loading ? "Loading…" : "Draft editor"}</div>
+                <div className="text-xs text-slate-400">{loading ? <GlowSpinner label="Loading…" /> : "Draft editor"}</div>
             </div>
           </div>
           <div className="p-5">
@@ -1002,7 +1003,7 @@ export function AgentDetailPage() {
                   title="Play voice preview"
                 >
                   <Play size={14} />
-                  {previewBusy ? "Loading…" : "Preview"}
+                  {previewBusy ? <GlowSpinner label="Generating…" /> : "Preview"}
                 </button>
               </div>
             </div>

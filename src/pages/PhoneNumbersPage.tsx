@@ -14,6 +14,8 @@ import {
 } from "../lib/api";
 import type { AgentProfile, PhoneNumber, TwilioAvailableNumber } from "../lib/api";
 import { Plus, Phone } from "lucide-react";
+import { SectionLoader } from "../components/loading";
+import { GlowSpinner } from "../components/loading";
 
 function Select(props: {
   value: string;
@@ -254,7 +256,7 @@ export function PhoneNumbersPage() {
                   <Input value={newLabel} onChange={setNewLabel} placeholder="Label (optional)" />
                   <div className="flex gap-2">
                     <Button onClick={onCreateManual} disabled={!newE164.trim() || creating} className="flex-1">
-                      {creating ? "Adding…" : "Add (manual)"}
+                      {creating ? <GlowSpinner label="Adding…" /> : "Add (manual)"}
                     </Button>
                     <Button
                       variant="secondary"
@@ -288,7 +290,7 @@ export function PhoneNumbersPage() {
 
         <div className="mt-4 flex-1 min-h-0 overflow-auto scrollbar-brand pr-1">
           {loading ? (
-            <div className="rounded-2xl bg-slate-950/40 p-4 text-sm text-slate-300">Loading…</div>
+            <SectionLoader title="Loading phone numbers" subtitle="Fetching your provisioned numbers…" />
           ) : filtered.length === 0 ? (
             <div className="rounded-2xl bg-slate-950/40 p-4 text-sm text-slate-300">No phone numbers yet.</div>
           ) : (

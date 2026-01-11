@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import { Card } from "../components/ui";
 import { getMe } from "../lib/api";
+import { SectionLoader } from "../components/loading";
 
 export function SettingsPage() {
   const [workspaceName, setWorkspaceName] = useState<string>("Workspace");
   const [workspaceId, setWorkspaceId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
     getMe()
       .then((m) => {
         if (!mounted) return;
         setWorkspaceName(m.workspace?.name || "Workspace");
         setWorkspaceId(m.workspace?.id || "");
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
     return () => {
       mounted = false;
     };
@@ -26,28 +32,32 @@ export function SettingsPage() {
         <div className="mt-1 text-sm text-slate-300">Workspace & app settings.</div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <div className="text-sm font-semibold">General</div>
-          <div className="mt-4 space-y-3 text-sm text-slate-300">
-            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-              Workspace: <span className="text-slate-100">{workspaceName}</span>
+      {loading ? (
+        <SectionLoader title="Loading settings" subtitle="Fetching workspace configuration…" />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <div className="text-sm font-semibold">General</div>
+            <div className="mt-4 space-y-3 text-sm text-slate-300">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                Workspace: <span className="text-slate-100">{workspaceName}</span>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                Workspace ID: <span className="text-slate-100">{workspaceId || "—"}</span>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                Region: <span className="text-slate-100">auto</span>
+              </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-              Workspace ID: <span className="text-slate-100">{workspaceId || "—"}</span>
+          </Card>
+          <Card>
+            <div className="text-sm font-semibold">Security</div>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
+              Login sessions are stored on the server (Postgres) and every request is scoped to your workspace.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-              Region: <span className="text-slate-100">auto</span>
-            </div>
-          </div>
-        </Card>
-        <Card>
-          <div className="text-sm font-semibold">Security</div>
-          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
-            Login sessions are stored on the server (Postgres) and every request is scoped to your workspace.
-          </div>
-        </Card>
-      </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

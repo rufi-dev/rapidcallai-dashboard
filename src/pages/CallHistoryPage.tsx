@@ -136,7 +136,7 @@ export function CallHistoryPage() {
     };
   }, [selectedId]);
 
-  const countLabel = useMemo(() => (loading ? "Loading…" : `${calls.length} calls`), [calls.length, loading]);
+  const countLabel = useMemo(() => (loading ? "…" : `${calls.length} calls`), [calls.length, loading]);
   const totalPages = useMemo(() => Math.max(1, Math.ceil(calls.length / PAGE_SIZE)), [calls.length]);
   const pagedCalls = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;

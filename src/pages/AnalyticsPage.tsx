@@ -4,6 +4,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import { TrendingUp } from "lucide-react";
 import { getAnalyticsRange, type AnalyticsSeriesPoint } from "../lib/api";
 import { toast } from "sonner";
+import { FullScreenLoader, GlowSpinner, SectionLoader } from "../components/loading";
 
 function toDateInputValue(ts: number): string {
   const d = new Date(ts);
@@ -81,14 +82,15 @@ export function AnalyticsPage() {
   }, [pendingFromDay, pendingToDay, appliedFromDay, appliedToDay]);
 
   const headerHint = useMemo(() => {
-    if (loading) return "Loading…";
+    if (loading) return null;
     if (!totals) return "—";
     const tok = totals.totalTokens != null ? totals.totalTokens.toLocaleString() : "—";
     return `${totals.callCount} calls • ${tok} tokens`;
   }, [loading, totals]);
 
   return (
-    <div className="space-y-6">
+    <FullScreenLoader show={loading} title="Loading analytics" subtitle="Crunching usage + performance stats…">
+      <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-2xl font-semibold tracking-tight">Analytics</div>
@@ -96,7 +98,7 @@ export function AnalyticsPage() {
         </div>
         <div className="rounded-2xl bg-brand-500/10 px-4 py-2 text-sm text-brand-200 shadow-glow">
           <span className="inline-flex items-center gap-2">
-            <TrendingUp size={16} /> {headerHint}
+            <TrendingUp size={16} /> {loading ? <GlowSpinner label="Updating…" /> : headerHint}
           </span>
         </div>
       </div>
@@ -172,7 +174,9 @@ export function AnalyticsPage() {
         </div>
 
         <div className="mt-5 h-64">
-          {series.length === 0 ? (
+          {loading ? (
+            <SectionLoader title="Loading chart" subtitle="Rendering call volume…" />
+          ) : series.length === 0 ? (
             <div className="h-full rounded-2xl bg-slate-950/30 p-4 text-sm text-slate-300">
               No chart data returned for this range.
               <div className="mt-2 text-xs text-slate-400">
@@ -204,7 +208,8 @@ export function AnalyticsPage() {
           )}
         </div>
       </Card>
-    </div>
+      </div>
+    </FullScreenLoader>
   );
 }
 
