@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, Button } from "../components/ui";
 import { getCall, getCallRecordingUrl, type CallRecord } from "../lib/api";
+import { SectionLoader } from "../components/loading";
 
 function fmtTs(ms: number | null): string {
   if (!ms) return "—";
@@ -107,7 +108,9 @@ export function CallDetailPage() {
 
       <Card>
         {loading ? (
-          <div className="p-6 text-sm text-slate-300">Loading…</div>
+          <div className="p-6">
+            <SectionLoader title="Loading call" subtitle="Fetching details + recording…" />
+          </div>
         ) : !call ? (
           <div className="p-6 text-sm text-slate-300">Not found.</div>
         ) : (

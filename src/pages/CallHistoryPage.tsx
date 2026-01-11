@@ -4,6 +4,7 @@ import { Button, Card } from "../components/ui";
 import { PhoneCall } from "lucide-react";
 import { getCall, getCallRecordingUrl, listCalls, type CallRecord, type CallSummary } from "../lib/api";
 import { toast } from "sonner";
+import { GlowSpinner, SectionLoader } from "../components/loading";
 
 function formatDuration(sec: number | null): string {
   if (sec == null) return "—";
@@ -225,7 +226,7 @@ export function CallHistoryPage() {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-10 text-center text-sm text-slate-300">
-                    Loading…
+                    <GlowSpinner label="Loading calls…" className="justify-center" />
                   </td>
                 </tr>
               ) : calls.length === 0 ? (
@@ -301,7 +302,7 @@ export function CallHistoryPage() {
 
           <div className="mt-4 flex-1 min-h-0 overflow-auto scrollbar-brand pr-1">
             {detailLoading ? (
-              <div className="rounded-3xl bg-slate-950/40 p-5 text-sm text-slate-300">Loading…</div>
+              <SectionLoader title="Loading call" subtitle="Fetching details + recording…" />
             ) : !detail ? (
               <div className="rounded-3xl bg-slate-950/40 p-5 text-sm text-slate-300">Not found.</div>
             ) : (

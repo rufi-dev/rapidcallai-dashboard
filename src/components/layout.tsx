@@ -17,6 +17,8 @@ import { signOut } from "../lib/auth";
 import { getBillingStatus, getBillingUsageSummary, getMe, logout, type BillingStatus, type BillingUsageSummaryResponse } from "../lib/api";
 import { HeaderSlotProvider, useHeaderSlots } from "./headerSlots";
 
+const BILLING_REFRESH_EVENT = "billing:refresh";
+
 function NavItem(props: { to: string; icon: React.ReactNode; label: string }) {
   return (
     <NavLink
@@ -92,6 +94,28 @@ export function AppShell() {
 
   useEffect(() => {
     let mounted = true;
+
+    async function refreshBilling() {
+      try {
+        const s = await getBillingStatus();
+        if (!mounted) return;
+        setBillingStatus(s);
+      } catch {
+        if (!mounted) return;
+        setBillingStatus(null);
+      }
+
+      // Best-effort: show "this month so far" estimate (from OpenMeter usage) in the Plan popover.
+      try {
+        const sum = await getBillingUsageSummary();
+        if (!mounted) return;
+        setUsageSummary(sum);
+      } catch {
+        if (!mounted) return;
+        setUsageSummary(null);
+      }
+    }
+
     getMe()
       .then((m) => {
         if (!mounted) return;
@@ -103,31 +127,23 @@ export function AppShell() {
         // ignore; RequireAuth handles redirects
       });
 
-    getBillingStatus()
-      .then((s) => {
-        if (!mounted) return;
-        setBillingStatus(s);
-      })
-      .catch(() => {
-        // ignore; show "Not configured" in plan popover
-        if (!mounted) return;
-        setBillingStatus(null);
-      });
+    void refreshBilling();
 
-    // Best-effort: show "this month so far" estimate (from OpenMeter usage) in the Plan popover.
-    getBillingUsageSummary()
-      .then((sum) => {
-        if (!mounted) return;
-        setUsageSummary(sum);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setUsageSummary(null);
-      });
+    function onBillingRefresh() {
+      void refreshBilling();
+    }
+    window.addEventListener(BILLING_REFRESH_EVENT, onBillingRefresh);
     return () => {
       mounted = false;
+      window.removeEventListener(BILLING_REFRESH_EVENT, onBillingRefresh);
     };
   }, []);
+
+  // When the plan popover opens, refresh in the background so it always shows up-to-date numbers.
+  useEffect(() => {
+    if (!planOpen) return;
+    window.dispatchEvent(new Event(BILLING_REFRESH_EVENT));
+  }, [planOpen]);
 
   const planLabel =
     !billingStatus

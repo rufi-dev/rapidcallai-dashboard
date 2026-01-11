@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Card } from "../components/ui";
+import { FullScreenLoader, GlowSpinner, SectionLoader } from "../components/loading";
 import {
   ensureStripeSubscription,
   getBillingStatus,
@@ -14,6 +15,8 @@ import {
   type UpcomingInvoiceResponse,
 } from "../lib/api";
 import { toast } from "sonner";
+
+const BILLING_REFRESH_EVENT = "billing:refresh";
 
 function fmtUsdCents(cents: number | null | undefined): string {
   const n = Number(cents || 0);
@@ -68,6 +71,9 @@ export function BillingPage() {
           if (!mounted) return;
           setInvoices(null);
         }
+
+        // Keep sidebar plan widget in sync without manual refresh.
+        window.dispatchEvent(new Event(BILLING_REFRESH_EVENT));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to load billing status");
         if (!mounted) return;
@@ -107,6 +113,7 @@ export function BillingPage() {
     try {
       const u = await getBillingUsageSummary();
       setUsage(u);
+      window.dispatchEvent(new Event(BILLING_REFRESH_EVENT));
     } catch {
       setUsage(null);
     }
@@ -117,6 +124,7 @@ export function BillingPage() {
       const inv = await getBillingInvoices();
       setInvoices(inv);
       if (inv?.upcoming?.id) setOpenInvoiceId(inv.upcoming.id);
+      window.dispatchEvent(new Event(BILLING_REFRESH_EVENT));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load invoices");
       setInvoices(null);
@@ -131,6 +139,7 @@ export function BillingPage() {
       setStatus(s);
       await loadUsage();
       await loadUpcomingInvoice();
+      window.dispatchEvent(new Event(BILLING_REFRESH_EVENT));
       toast.success("Stripe subscription configured");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to configure Stripe subscription");
@@ -140,7 +149,8 @@ export function BillingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <FullScreenLoader show={loading} title="Loading billing" subtitle="Syncing usage + invoices…">
+      <div className="space-y-6">
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white">
@@ -160,16 +170,12 @@ export function BillingPage() {
             onClick={() => void loadUpcomingInvoice()}
             disabled={invoiceLoading || !status?.stripe?.subscriptionId}
           >
-            {invoiceLoading ? "Loading…" : "Stripe preview"}
+            {invoiceLoading ? <GlowSpinner label="Previewing…" /> : "Stripe preview"}
           </Button>
         </div>
       </div>
 
-      {loading ? (
-        <Card className="p-5">
-          <div className="text-sm text-slate-300">Loading…</div>
-        </Card>
-      ) : !status ? (
+      {!status ? (
         <Card className="p-5">
           <div className="text-sm font-semibold text-white">Billing unavailable</div>
           <div className="mt-2 text-sm text-slate-300">Could not load billing status from the server.</div>
@@ -243,6 +249,7 @@ export function BillingPage() {
 
           {tab === "history" ? (
             <div className="p-4 space-y-4">
+              {!invoices ? <SectionLoader title="Loading invoices" subtitle="Fetching your billing history…" /> : null}
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -375,6 +382,7 @@ export function BillingPage() {
             </div>
           ) : (
             <div className="p-4">
+              {!usage ? <SectionLoader title="Loading usage" subtitle="Calculating month-to-date usage…" /> : null}
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs text-slate-400">This month so far</div>
@@ -417,7 +425,8 @@ export function BillingPage() {
           )}
         </Card>
       )}
-    </div>
+      </div>
+    </FullScreenLoader>
   );
 }
 
