@@ -723,21 +723,16 @@ export function AgentDetailPage() {
     if (!talkTimeoutMs) return;
     if (agentReady) return;
     const msLeft = talkTimeoutMs - Date.now();
-    if (msLeft <= 0) {
-      const extra =
-        session.expectedAgentName
-          ? `Expected agent name: ${session.expectedAgentName}.`
-          : "No explicit agent name requested (dispatch rules should match the room name).";
+    const t = window.setTimeout(() => {
+      if (agentReady) return;
+      const extra = session.expectedAgentName
+        ? `Expected agent name: ${session.expectedAgentName}.`
+        : `No explicit agent name was requested. This means LiveKit Cloud dispatch rules must match the room name prefix (currently rooms look like "${session.roomName}").`;
       setError(
         `The agent did not join the room within 15 seconds. ${extra} ` +
-          `Check your LiveKit dispatch rules for the room prefix (LIVEKIT_WEB_ROOM_PREFIX) and ensure the cloud agent is deployed/running.`
+          `Fix: add/verify a LiveKit Cloud dispatch rule for the "call-" prefix, or set LIVEKIT_WEB_AGENT_NAME on the API to explicitly request an agent.`
       );
-      return;
-    }
-    const t = window.setTimeout(() => {
-      // trigger re-run
-      setTalkTimeoutMs((v) => (v ? v : null));
-    }, Math.min(msLeft, 500));
+    }, Math.max(0, msLeft));
     return () => window.clearTimeout(t);
   }, [session?.roomName, session?.expectedAgentName, talkTimeoutMs, agentReady]);
 
