@@ -586,9 +586,10 @@ export function AgentDetailPage() {
     setSaving(true);
     setError(null);
     try {
+      const llmModelTrim = String(llmModel || "").trim();
       const updated = await updateAgent(agent.id, {
         promptDraft: draftPrompt,
-        llmModel: llmModel || "",
+        ...(llmModelTrim ? { llmModel: llmModelTrim } : {}),
         maxCallSeconds: Math.max(0, Math.round(Number(maxCallMinutes || 0) * 60)),
         welcome: {
           mode: welcomeMode,
@@ -617,7 +618,25 @@ export function AgentDetailPage() {
     setPublishing(true);
     setError(null);
     try {
-      const updated = await updateAgent(agent.id, { publish: true });
+      // Publish should behave like "save + publish" (so user doesn't have to save draft separately).
+      const llmModelTrim = String(llmModel || "").trim();
+      const updated = await updateAgent(agent.id, {
+        promptDraft: draftPrompt,
+        publish: true,
+        ...(llmModelTrim ? { llmModel: llmModelTrim } : {}),
+        maxCallSeconds: Math.max(0, Math.round(Number(maxCallMinutes || 0) * 60)),
+        welcome: {
+          mode: welcomeMode,
+          aiMessageMode,
+          aiMessageText,
+          aiDelaySeconds,
+        },
+        voice: {
+          provider: voiceProvider,
+          model: voiceModel,
+          voiceId,
+        },
+      });
       setAgent(updated);
       toast.success("Published");
     } catch (e) {
