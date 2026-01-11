@@ -6,6 +6,7 @@ export type AgentProfile = {
   promptDraft?: string;
   promptPublished?: string;
   llmModel?: string; // persisted per-agent LLM model (e.g., "gpt-5.2")
+  knowledgeFolderIds?: string[];
   maxCallSeconds?: number; // hard cap; 0 = unlimited
   welcome?: {
     mode?: "ai" | "user";
@@ -405,6 +406,7 @@ export async function updateAgent(
     promptDraft?: string;
     publish?: boolean;
     llmModel?: string;
+    knowledgeFolderIds?: string[];
     maxCallSeconds?: number;
     welcome?: AgentProfile["welcome"];
     voice?: AgentProfile["voice"];
@@ -586,6 +588,77 @@ export async function getAgentUsageSummary(id: string): Promise<AgentUsageSummar
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/usage-summary`);
   if (!res.ok) throw new Error(`getAgentUsageSummary failed: ${await readError(res)}`);
   return (await res.json()) as AgentUsageSummary;
+}
+
+// --- Knowledge Base ---
+export type KbFolder = { id: string; name: string; parentId: string | null; createdAt: number; updatedAt: number };
+export type KbDoc = {
+  id: string;
+  folderId: string;
+  kind: "text" | "pdf" | string;
+  title: string;
+  contentText: string;
+  sourceFilename: string | null;
+  mime: string | null;
+  sizeBytes: number | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export async function listKbFolders(): Promise<KbFolder[]> {
+  const res = await apiFetch(`/api/kb/folders`);
+  if (!res.ok) throw new Error(`listKbFolders failed: ${await readError(res)}`);
+  const data = (await res.json()) as { folders: KbFolder[] };
+  return data.folders;
+}
+
+export async function createKbFolder(input: { name: string; parentId?: string | null }): Promise<KbFolder> {
+  const res = await apiFetch(`/api/kb/folders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`createKbFolder failed: ${await readError(res)}`);
+  const data = (await res.json()) as { folder: KbFolder };
+  return data.folder;
+}
+
+export async function deleteKbFolder(id: string): Promise<void> {
+  const res = await apiFetch(`/api/kb/folders/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`deleteKbFolder failed: ${await readError(res)}`);
+}
+
+export async function listKbDocs(folderId: string): Promise<KbDoc[]> {
+  const res = await apiFetch(`/api/kb/folders/${encodeURIComponent(folderId)}/docs`);
+  if (!res.ok) throw new Error(`listKbDocs failed: ${await readError(res)}`);
+  const data = (await res.json()) as { docs: KbDoc[] };
+  return data.docs;
+}
+
+export async function createKbTextDoc(folderId: string, input: { title?: string; contentText: string }): Promise<KbDoc> {
+  const res = await apiFetch(`/api/kb/folders/${encodeURIComponent(folderId)}/text`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`createKbTextDoc failed: ${await readError(res)}`);
+  const data = (await res.json()) as { doc: KbDoc };
+  return data.doc;
+}
+
+export async function uploadKbPdf(folderId: string, input: { title?: string; file: File }): Promise<KbDoc> {
+  const fd = new FormData();
+  fd.append("file", input.file);
+  if (input.title) fd.append("title", input.title);
+  const res = await apiFetch(`/api/kb/folders/${encodeURIComponent(folderId)}/pdf`, { method: "POST", body: fd });
+  if (!res.ok) throw new Error(`uploadKbPdf failed: ${await readError(res)}`);
+  const data = (await res.json()) as { doc: KbDoc };
+  return data.doc;
+}
+
+export async function deleteKbDoc(id: string): Promise<void> {
+  const res = await apiFetch(`/api/kb/docs/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`deleteKbDoc failed: ${await readError(res)}`);
 }
 
 export async function listPhoneNumbers(_workspaceId?: string): Promise<PhoneNumber[]> {

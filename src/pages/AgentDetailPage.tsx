@@ -12,12 +12,14 @@ import {
   endCall,
   getAgent,
   getAgentAnalytics,
+  listKbFolders,
   previewTts,
   startAgent,
   updateAgent,
   type AgentAnalytics,
   type AgentProfile,
   type CallTranscriptItem,
+  type KbFolder,
   type StartResponse,
 } from "../lib/api";
 import { useHeaderSlots } from "../components/headerSlots";
@@ -32,25 +34,26 @@ type TranscriptItem = {
 };
 
 const ELEVENLABS_MODELS = [
-  { id: "eleven_multilingual_v2", name: "Multilingual v2", note: "Best overall quality" },
+  { id: "eleven_flash_v2_5", name: "Flash v2.5", note: "Default (per LiveKit docs)" },
+  { id: "eleven_multilingual_v2", name: "Multilingual v2", note: "Higher quality" },
   { id: "eleven_turbo_v2_5", name: "Turbo v2.5", note: "Lower latency" },
   { id: "eleven_monolingual_v1", name: "Monolingual v1", note: "Legacy (English)" },
 ] as const;
 
 const ELEVENLABS_VOICES = [
   {
-    id: "CwhRBWXzGAHq8TQ4Fs17",
-    name: "Roger",
-    description: "Laid-Back, Casual, Resonant",
-    sampleText: "Hey there! I'm Roger, and I'm here to help you with whatever you need. What can I do for you today?",
-    languages: ["English", "French", "German", "Dutch", "Spanish"],
-  },
-  {
     id: "EXAVITQu4vr4xnSDxMaL",
     name: "Sarah",
     description: "Mature, Reassuring, Confident",
     sampleText: "Hello, I'm Sarah. I bring a confident and warm approach to our conversation. How may I assist you today?",
     languages: ["English", "French", "Arabic", "German", "Dutch", "Spanish"],
+  },
+  {
+    id: "CwhRBWXzGAHq8TQ4Fs17",
+    name: "Roger",
+    description: "Laid-Back, Casual, Resonant",
+    sampleText: "Hey there! I'm Roger, and I'm here to help you with whatever you need. What can I do for you today?",
+    languages: ["English", "French", "German", "Dutch", "Spanish"],
   },
   {
     id: "FGY2WhTYpPnrIDTdsKH5",
@@ -352,12 +355,16 @@ export function AgentDetailPage() {
   const [aiMessageText, setAiMessageText] = useState("");
   const [aiDelaySeconds, setAiDelaySeconds] = useState(0);
   const [maxCallMinutes, setMaxCallMinutes] = useState<number>(0);
+  const [kbFolders, setKbFolders] = useState<KbFolder[]>([]);
+  const [kbFoldersLoading, setKbFoldersLoading] = useState(false);
+  const [knowledgeFolderIds, setKnowledgeFolderIds] = useState<string[]>([]);
 
   const [activeTab, setActiveTab] = useState<"prompt" | "model" | "voice" | "transcriber" | "tools">("prompt");
 
-  const [voiceProvider, setVoiceProvider] = useState<"cartesia" | "elevenlabs">("cartesia");
-  const [voiceModel, setVoiceModel] = useState<string>("sonic-2");
-  const [voiceId, setVoiceId] = useState<string>(CARTESIA_VOICES[0].id);
+  // Default to ElevenLabs (user requested) and allow switching to Cartesia.
+  const [voiceProvider, setVoiceProvider] = useState<"cartesia" | "elevenlabs">("elevenlabs");
+  const [voiceModel, setVoiceModel] = useState<string>(ELEVENLABS_MODELS[0].id);
+  const [voiceId, setVoiceId] = useState<string>(ELEVENLABS_VOICES[0].id);
   const [previewText, setPreviewText] = useState<string>(
     "Hi! This is a quick voice preview from your assistant. How can I help you today?"
   );
@@ -525,13 +532,14 @@ export function AgentDetailPage() {
       setAgent(a);
       setDraftPrompt(a.promptDraft ?? a.promptPublished ?? "");
       setLlmModel(String(a.llmModel || ""));
+      setKnowledgeFolderIds(Array.isArray((a as any)?.knowledgeFolderIds) ? ((a as any).knowledgeFolderIds as string[]) : []);
       setWelcomeMode(a.welcome?.mode ?? "user");
       setAiMessageMode(a.welcome?.aiMessageMode ?? "dynamic");
       setAiMessageText(a.welcome?.aiMessageText ?? "");
       setAiDelaySeconds(a.welcome?.aiDelaySeconds ?? 0);
       setMaxCallMinutes(a.maxCallSeconds ? Math.round(Number(a.maxCallSeconds) / 60) : 0);
 
-      const vp = (a.voice?.provider as "cartesia" | "elevenlabs" | undefined) ?? "cartesia";
+      const vp = (a.voice?.provider as "cartesia" | "elevenlabs" | undefined) ?? "elevenlabs";
       setVoiceProvider(vp);
       if (vp === "elevenlabs") {
         setVoiceModel(String(a.voice?.model || ELEVENLABS_MODELS[0].id));
@@ -548,6 +556,17 @@ export function AgentDetailPage() {
         setAgentAnalytics(an);
       } catch {
         setAgentAnalytics(null);
+      }
+
+      // Best-effort: load KB folders for linking.
+      try {
+        setKbFoldersLoading(true);
+        const f = await listKbFolders();
+        setKbFolders(f);
+      } catch {
+        setKbFolders([]);
+      } finally {
+        setKbFoldersLoading(false);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load agent");
@@ -567,9 +586,14 @@ export function AgentDetailPage() {
     const savedWelcome = agent?.welcome ?? {};
     const savedVoice = agent?.voice ?? {};
     const savedMaxCallMinutes = agent?.maxCallSeconds ? Math.round(Number(agent.maxCallSeconds) / 60) : 0;
+    const savedKb = Array.isArray((agent as any)?.knowledgeFolderIds) ? (((agent as any).knowledgeFolderIds as string[]) || []) : [];
+    const kbSame =
+      savedKb.length === knowledgeFolderIds.length &&
+      [...savedKb].sort().join(",") === [...knowledgeFolderIds].sort().join(",");
     return (
       saved !== draftPrompt ||
       String(agent?.llmModel || "") !== llmModel ||
+      !kbSame ||
       (savedWelcome.mode ?? "user") !== welcomeMode ||
       (savedWelcome.aiMessageMode ?? "dynamic") !== aiMessageMode ||
       (savedWelcome.aiMessageText ?? "") !== aiMessageText ||
@@ -579,7 +603,7 @@ export function AgentDetailPage() {
       (savedVoice.model ?? (voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)) !== voiceModel ||
       (savedVoice.voiceId ?? "") !== voiceId
     );
-  }, [agent, draftPrompt, llmModel, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, maxCallMinutes, voiceProvider, voiceModel, voiceId]);
+  }, [agent, draftPrompt, llmModel, knowledgeFolderIds, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, maxCallMinutes, voiceProvider, voiceModel, voiceId]);
   const canSave = useMemo(() => draftPrompt.trim().length > 0 && isDirty && !saving, [draftPrompt, isDirty, saving]);
 
   async function onSave() {
@@ -591,6 +615,7 @@ export function AgentDetailPage() {
       const updated = await updateAgent(agent.id, {
         promptDraft: draftPrompt,
         ...(llmModelTrim ? { llmModel: llmModelTrim } : {}),
+        knowledgeFolderIds,
         maxCallSeconds: Math.max(0, Math.round(Number(maxCallMinutes || 0) * 60)),
         welcome: {
           mode: welcomeMode,
@@ -625,6 +650,7 @@ export function AgentDetailPage() {
         promptDraft: draftPrompt,
         publish: true,
         ...(llmModelTrim ? { llmModel: llmModelTrim } : {}),
+        knowledgeFolderIds,
         maxCallSeconds: Math.max(0, Math.round(Number(maxCallMinutes || 0) * 60)),
         welcome: {
           mode: welcomeMode,
@@ -888,6 +914,56 @@ export function AgentDetailPage() {
                     <div className="mb-1 text-xs text-slate-400">Model</div>
                     <LlmModelDropdown value={llmModel} onChange={setLlmModel} />
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-3xl border border-white/10 bg-slate-950/30 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-semibold">Knowledge folders</div>
+                    <div className="mt-1 text-xs text-slate-400">
+                      Select one or more folders from your Knowledge Base. The agent will use them during calls.
+                    </div>
+                  </div>
+                  <a
+                    href="/app/knowledge"
+                    className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 hover:bg-white/10"
+                  >
+                    Manage
+                  </a>
+                </div>
+
+                <div className="mt-4">
+                  {kbFoldersLoading ? (
+                    <GlowSpinner label="Loading folders…" />
+                  ) : kbFolders.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300">
+                      No knowledge folders yet. Create one in Knowledge Base.
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {kbFolders.map((f) => {
+                        const on = knowledgeFolderIds.includes(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            onClick={() =>
+                              setKnowledgeFolderIds((prev) =>
+                                on ? prev.filter((x) => x !== f.id) : [...prev, f.id]
+                              )
+                            }
+                            className={[
+                              "flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-sm transition",
+                              on ? "border-brand-500/40 bg-brand-500/10 text-white" : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10",
+                            ].join(" ")}
+                          >
+                            <div className="min-w-0 truncate">{f.name}</div>
+                            {on ? <Check size={16} className="text-brand-300" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
