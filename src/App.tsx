@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { AppShell } from "./components/layout";
 import { AgentsPage } from "./pages/AgentsPage";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
@@ -9,10 +10,34 @@ import { BillingPage } from "./pages/BillingPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { PhoneNumbersPage } from "./pages/PhoneNumbersPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
-import { isAuthed } from "./lib/auth";
+import { isAuthed, signOut } from "./lib/auth";
+import { getMe } from "./lib/api";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  if (!isAuthed()) return <Navigate to="/login" replace />;
+  const [checked, setChecked] = useState(false);
+  const [ok, setOk] = useState<boolean>(isAuthed());
+
+  useEffect(() => {
+    let mounted = true;
+    getMe()
+      .then(() => {
+        if (!mounted) return;
+        setOk(true);
+        setChecked(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        signOut();
+        setOk(false);
+        setChecked(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!checked) return null;
+  if (!ok) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 

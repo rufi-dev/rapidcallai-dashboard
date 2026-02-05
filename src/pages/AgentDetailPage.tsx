@@ -846,7 +846,7 @@ export function AgentDetailPage() {
     <div className={panelOpen ? "grid gap-6 xl:grid-cols-[1fr_520px] items-start" : "space-y-6"}>
 
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="col-span-full rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
           {error}
         </div>
       ) : null}
@@ -1301,6 +1301,8 @@ export function AgentDetailPage() {
                   onDisconnected={async () => {
                     await finalizeCall("ended");
                     setSession(null);
+                    setAgentReady(false);
+                    setTalkTimeoutMs(null);
                   }}
                   className="h-full"
                 >
@@ -1324,6 +1326,8 @@ export function AgentDetailPage() {
                           await finalizeCall("ended");
                           setSession(null);
                           setPanelOpen(false);
+                          setAgentReady(false);
+                          setTalkTimeoutMs(null);
                         }}
                       />
                     </div>

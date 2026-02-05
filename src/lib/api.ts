@@ -320,7 +320,7 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = getToken();
   const headers = new Headers(init?.headers || undefined);
   if (token) headers.set("authorization", `Bearer ${token}`);
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "include" });
   if (res.status === 401) {
     // Token is no longer valid on the server (expired/deleted) -> force re-login.
     signOut();

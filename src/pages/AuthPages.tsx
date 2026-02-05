@@ -399,8 +399,8 @@ export function LoginPage() {
             try {
               setBusy(true);
               setErr(null);
-              const out = await login({ email: email.trim(), password });
-              setToken(out.token);
+              await login({ email: email.trim(), password });
+              setToken("ok");
               nav("/app/agents");
             } catch (e) {
               setErr(friendlyAuthError("login", e));
@@ -459,8 +459,8 @@ export function RegisterPage() {
             try {
               setBusy(true);
               setErr(null);
-              const out = await register({ name: name.trim(), email: email.trim(), password });
-              setToken(out.token);
+              await register({ name: name.trim(), email: email.trim(), password });
+              setToken("ok");
               nav("/app/agents", { state: { from: location.pathname } });
             } catch (e) {
               setErr(friendlyAuthError("register", e));
