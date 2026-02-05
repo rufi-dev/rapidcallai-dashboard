@@ -6,6 +6,7 @@ export type AgentProfile = {
   promptDraft?: string;
   promptPublished?: string;
   llmModel?: string; // persisted per-agent LLM model (e.g., "gpt-5.2")
+  autoEvalEnabled?: boolean;
   knowledgeFolderIds?: string[];
   maxCallSeconds?: number; // hard cap; 0 = unlimited
   welcome?: {
@@ -93,7 +94,9 @@ export type CallEvaluation = {
   callId: string;
   workspaceId: string;
   score: number;
+  source?: "manual" | "auto";
   notes: string;
+  details?: any;
   createdAt: number;
   updatedAt: number;
 };
@@ -443,6 +446,7 @@ export async function updateAgent(
     promptDraft?: string;
     publish?: boolean;
     llmModel?: string;
+    autoEvalEnabled?: boolean;
     knowledgeFolderIds?: string[];
     maxCallSeconds?: number;
     welcome?: AgentProfile["welcome"];
@@ -603,6 +607,15 @@ export async function createCallEvaluation(
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`createCallEvaluation failed: ${await readError(res)}`);
+  const data = (await res.json()) as { evaluation: CallEvaluation };
+  return data.evaluation;
+}
+
+export async function autoEvaluateCall(id: string): Promise<CallEvaluation> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/auto-evaluate`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error(`autoEvaluateCall failed: ${await readError(res)}`);
   const data = (await res.json()) as { evaluation: CallEvaluation };
   return data.evaluation;
 }

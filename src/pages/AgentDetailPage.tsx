@@ -365,12 +365,14 @@ export function AgentDetailPage() {
   const [knowledgeFolderIds, setKnowledgeFolderIds] = useState<string[]>([]);
 
   const [activeTab, setActiveTab] = useState<"prompt" | "model" | "voice" | "transcriber" | "tools" | "ab">("prompt");
+  const [autoEvalEnabled, setAutoEvalEnabled] = useState(false);
   const [variants, setVariants] = useState<AgentVariant[]>([]);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [variantName, setVariantName] = useState("");
   const [variantPrompt, setVariantPrompt] = useState("");
   const [variantTraffic, setVariantTraffic] = useState<number>(0);
   const [variantEnabled, setVariantEnabled] = useState(true);
+  const [autoEvalBusy, setAutoEvalBusy] = useState(false);
 
   // Default to ElevenLabs (user requested) and allow switching to Cartesia.
   const [voiceProvider, setVoiceProvider] = useState<"cartesia" | "elevenlabs">("elevenlabs");
@@ -544,6 +546,7 @@ export function AgentDetailPage() {
       setAgent(a);
       setDraftPrompt(a.promptDraft ?? a.promptPublished ?? "");
       setLlmModel(String(a.llmModel || ""));
+      setAutoEvalEnabled(Boolean(a.autoEvalEnabled));
       setKnowledgeFolderIds(Array.isArray((a as any)?.knowledgeFolderIds) ? ((a as any).knowledgeFolderIds as string[]) : []);
       setWelcomeMode(a.welcome?.mode ?? "user");
       setAiMessageMode(a.welcome?.aiMessageMode ?? "dynamic");
@@ -1311,6 +1314,37 @@ export function AgentDetailPage() {
               </div>
             </div>
             <div className="p-5 space-y-5">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4 space-y-3">
+                <div className="text-sm font-semibold">AI auto evaluation</div>
+                <div className="text-xs text-slate-400">
+                  When enabled, every completed call gets an AI QA score + suggestions.
+                </div>
+                <label className="flex items-center gap-2 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={autoEvalEnabled}
+                    onChange={async (e) => {
+                      const next = e.target.checked;
+                      setAutoEvalEnabled(next);
+                      setAutoEvalBusy(true);
+                      try {
+                        const updated = await updateAgent(agentId, { autoEvalEnabled: next });
+                        setAgent(updated);
+                        setAutoEvalEnabled(Boolean(updated.autoEvalEnabled));
+                        toast.success("Auto evaluation updated");
+                      } catch (err) {
+                        setAutoEvalEnabled(!next);
+                        toast.error(err instanceof Error ? err.message : "Failed to update auto evaluation");
+                      } finally {
+                        setAutoEvalBusy(false);
+                      }
+                    }}
+                    disabled={autoEvalBusy}
+                  />
+                  Enable AI auto evaluation
+                </label>
+              </div>
+
               <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4 space-y-3">
                 <div className="text-sm font-semibold">New variant</div>
                 <div className="grid gap-3 md:grid-cols-2">

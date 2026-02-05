@@ -8,6 +8,7 @@ import {
   exportCall,
   listCallEvaluations,
   createCallEvaluation,
+  autoEvaluateCall,
   listCallLabels,
   addCallLabel,
   deleteCallLabel,
@@ -33,6 +34,20 @@ function formatDuration(sec: number | null): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function parseDetails(value: unknown): Record<string, any> | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return typeof parsed === "object" && parsed ? (parsed as Record<string, any>) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === "object") return value as Record<string, any>;
+  return null;
+}
+
 export function CallDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -49,6 +64,7 @@ export function CallDetailPage() {
   const [evalScore, setEvalScore] = useState<number>(80);
   const [evalNotes, setEvalNotes] = useState("");
   const [evalBusy, setEvalBusy] = useState(false);
+  const [evalAutoBusy, setEvalAutoBusy] = useState(false);
 
   async function refreshRecording(c: CallRecord | null) {
     if (!c?.recording) {
@@ -119,6 +135,7 @@ export function CallDetailPage() {
   }, [callId]);
 
   const canShowRecording = useMemo(() => Boolean(call?.recording), [call?.recording]);
+  const canAutoEval = useMemo(() => Boolean(call?.transcript?.length), [call?.transcript?.length]);
 
   return (
     <div className="space-y-6">
@@ -158,6 +175,12 @@ export function CallDetailPage() {
                 <div className="text-xs text-slate-400">Outcome</div>
                 <div className="text-slate-100">{call.outcome}</div>
               </div>
+              {call.metrics?.abTest?.variantName ? (
+                <div>
+                  <div className="text-xs text-slate-400">Variant</div>
+                  <div className="text-slate-100">{call.metrics.abTest.variantName}</div>
+                </div>
+              ) : null}
               <div>
                 <div className="text-xs text-slate-400">Started</div>
                 <div className="text-slate-100">{fmtTs(call.startedAt)}</div>
@@ -284,6 +307,24 @@ export function CallDetailPage() {
                   >
                     {evalBusy ? "Saving…" : "Save evaluation"}
                   </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      try {
+                        setEvalAutoBusy(true);
+                        const row = await autoEvaluateCall(callId);
+                        setEvaluations((prev) => [row, ...prev]);
+                        toast.success("AI evaluation completed");
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "AI evaluation failed");
+                      } finally {
+                        setEvalAutoBusy(false);
+                      }
+                    }}
+                    disabled={evalAutoBusy || !canAutoEval}
+                  >
+                    {evalAutoBusy ? "Running…" : "Run AI evaluation"}
+                  </Button>
                 </div>
                 <div className="mt-4 space-y-3">
                   {evaluations.length === 0 ? (
@@ -292,10 +333,66 @@ export function CallDetailPage() {
                     evaluations.map((ev) => (
                       <div key={ev.id} className="rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-sm">
                         <div className="flex items-center justify-between">
-                          <div className="text-xs text-slate-400">Score</div>
+                          <div className="text-xs text-slate-400">
+                            Score {ev.source === "auto" ? "• AI" : "• Manual"}
+                          </div>
                           <div className="font-semibold text-slate-100">{ev.score}</div>
                         </div>
-                        {ev.notes ? <div className="mt-2 text-slate-200 whitespace-pre-wrap">{ev.notes}</div> : null}
+                        {ev.source === "auto" ? (() => {
+                          const details = parseDetails(ev.details);
+                          const summary = details?.summary ?? ev.notes;
+                          const strengths = Array.isArray(details?.strengths) ? details.strengths : [];
+                          const issues = Array.isArray(details?.issues) ? details.issues : [];
+                          const fixes = Array.isArray(details?.suggestedFixes) ? details.suggestedFixes : [];
+                          const nextTests = Array.isArray(details?.nextTests) ? details.nextTests : [];
+                          return (
+                            <div className="mt-2 space-y-2">
+                              {summary ? <div className="text-slate-200">{summary}</div> : null}
+                              {strengths.length ? (
+                                <div>
+                                  <div className="text-xs text-slate-400">Strengths</div>
+                                  <ul className="mt-1 list-disc pl-5 text-slate-200">
+                                    {strengths.slice(0, 6).map((s: string, i: number) => (
+                                      <li key={`s-${i}`}>{s}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {issues.length ? (
+                                <div>
+                                  <div className="text-xs text-slate-400">Issues</div>
+                                  <ul className="mt-1 list-disc pl-5 text-slate-200">
+                                    {issues.slice(0, 6).map((s: string, i: number) => (
+                                      <li key={`i-${i}`}>{s}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {fixes.length ? (
+                                <div>
+                                  <div className="text-xs text-slate-400">Suggested fixes</div>
+                                  <ul className="mt-1 list-disc pl-5 text-slate-200">
+                                    {fixes.slice(0, 6).map((s: string, i: number) => (
+                                      <li key={`f-${i}`}>{s}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {nextTests.length ? (
+                                <div>
+                                  <div className="text-xs text-slate-400">Next tests</div>
+                                  <ul className="mt-1 list-disc pl-5 text-slate-200">
+                                    {nextTests.slice(0, 6).map((s: string, i: number) => (
+                                      <li key={`n-${i}`}>{s}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })() : ev.notes ? (
+                          <div className="mt-2 text-slate-200 whitespace-pre-wrap">{ev.notes}</div>
+                        ) : null}
                         <div className="mt-2 text-xs text-slate-500">{fmtTs(ev.createdAt)}</div>
                       </div>
                     ))
