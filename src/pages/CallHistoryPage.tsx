@@ -291,13 +291,24 @@ export function CallHistoryPage() {
         <aside className="sticky top-[84px] h-[calc(100vh-120px)] overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5 flex flex-col">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">Call</div>
-            <button
-              onClick={() => nav("/app/calls")}
-              className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-white/10"
-              title="Close"
-            >
-              Close
-            </button>
+            <div className="flex items-center gap-2">
+              {selectedId ? (
+                <button
+                  onClick={() => nav(`/app/calls/${encodeURIComponent(selectedId)}`)}
+                  className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-white/10"
+                  title="Open full details"
+                >
+                  Open full
+                </button>
+              ) : null}
+              <button
+                onClick={() => nav("/app/calls")}
+                className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-white/10"
+                title="Close"
+              >
+                Close
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 flex-1 min-h-0 overflow-auto scrollbar-brand pr-1">
