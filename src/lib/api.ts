@@ -76,6 +76,24 @@ export type CallRecord = {
   metrics?: any;
 };
 
+export type CallEvaluation = {
+  id: string;
+  callId: string;
+  workspaceId: string;
+  score: number;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type CallLabel = {
+  id: string;
+  callId: string;
+  workspaceId: string;
+  label: string;
+  createdAt: number;
+};
+
 export type CallSummary = {
   id: string;
   agentId: string;
@@ -320,6 +338,12 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = getToken();
   const headers = new Headers(init?.headers || undefined);
   if (token) headers.set("authorization", `Bearer ${token}`);
+  const csrf = document.cookie
+    .split(";")
+    .map((p) => p.trim())
+    .find((p) => p.startsWith("csrf_token="))
+    ?.split("=")[1];
+  if (csrf) headers.set("x-csrf-token", decodeURIComponent(csrf));
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "include" });
   if (res.status === 401) {
     // Token is no longer valid on the server (expired/deleted) -> force re-login.
@@ -499,6 +523,60 @@ export async function getCall(id: string): Promise<CallRecord> {
   if (!res.ok) throw new Error(`getCall failed: ${await readError(res)}`);
   const data = (await res.json()) as { call: CallRecord };
   return data.call;
+}
+
+export async function exportCall(id: string): Promise<{ call: CallRecord }> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/export`);
+  if (!res.ok) throw new Error(`exportCall failed: ${await readError(res)}`);
+  return (await res.json()) as { call: CallRecord };
+}
+
+export async function listCallEvaluations(id: string): Promise<CallEvaluation[]> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/evaluations`);
+  if (!res.ok) throw new Error(`listCallEvaluations failed: ${await readError(res)}`);
+  const data = (await res.json()) as { evaluations: CallEvaluation[] };
+  return data.evaluations;
+}
+
+export async function createCallEvaluation(
+  id: string,
+  input: { score: number; notes?: string }
+): Promise<CallEvaluation> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/evaluations`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`createCallEvaluation failed: ${await readError(res)}`);
+  const data = (await res.json()) as { evaluation: CallEvaluation };
+  return data.evaluation;
+}
+
+export async function listCallLabels(id: string): Promise<CallLabel[]> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/labels`);
+  if (!res.ok) throw new Error(`listCallLabels failed: ${await readError(res)}`);
+  const data = (await res.json()) as { labels: CallLabel[] };
+  return data.labels;
+}
+
+export async function addCallLabel(id: string, label: string): Promise<CallLabel> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/labels`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) throw new Error(`addCallLabel failed: ${await readError(res)}`);
+  const data = (await res.json()) as { label: CallLabel };
+  return data.label;
+}
+
+export async function deleteCallLabel(id: string, label: string): Promise<void> {
+  const res = await apiFetch(`/api/calls/${encodeURIComponent(id)}/labels`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) throw new Error(`deleteCallLabel failed: ${await readError(res)}`);
 }
 
 export async function endCall(

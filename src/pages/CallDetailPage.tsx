@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Card, Button } from "../components/ui";
-import { getCall, getCallRecordingUrl, type CallRecord } from "../lib/api";
+import { Card, Button, Textarea } from "../components/ui";
+import {
+  getCall,
+  getCallRecordingUrl,
+  exportCall,
+  listCallEvaluations,
+  createCallEvaluation,
+  listCallLabels,
+  addCallLabel,
+  deleteCallLabel,
+  type CallRecord,
+  type CallEvaluation,
+  type CallLabel,
+} from "../lib/api";
 import { SectionLoader } from "../components/loading";
 
 function fmtTs(ms: number | null): string {
@@ -31,6 +43,12 @@ export function CallDetailPage() {
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [evaluations, setEvaluations] = useState<CallEvaluation[]>([]);
+  const [labels, setLabels] = useState<CallLabel[]>([]);
+  const [labelInput, setLabelInput] = useState("");
+  const [evalScore, setEvalScore] = useState<number>(80);
+  const [evalNotes, setEvalNotes] = useState("");
+  const [evalBusy, setEvalBusy] = useState(false);
 
   async function refreshRecording(c: CallRecord | null) {
     if (!c?.recording) {
@@ -81,6 +99,14 @@ export function CallDetailPage() {
         if (!mounted) return;
         setCall(c);
         await refreshRecording(c);
+        try {
+          const [e, l] = await Promise.all([listCallEvaluations(callId), listCallLabels(callId)]);
+          if (!mounted) return;
+          setEvaluations(e);
+          setLabels(l);
+        } catch {
+          // ignore; not critical for page load
+        }
       } catch (e) {
         toast.error(`Failed to load call: ${e instanceof Error ? e.message : "Unknown error"}`);
       } finally {
@@ -209,6 +235,147 @@ export function CallDetailPage() {
                 ) : (
                   <div className="text-sm text-slate-300">No transcript saved yet.</div>
                 )}
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+              <div>
+                <div className="text-sm font-semibold">Call evaluation</div>
+                <div className="mt-2 text-xs text-slate-400">
+                  Add a score and notes after reviewing the transcript or recording.
+                </div>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div className="text-xs text-slate-400">Score (0–100)</div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={evalScore}
+                      onChange={(e) => setEvalScore(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Notes</div>
+                    <Textarea
+                      value={evalNotes}
+                      onChange={setEvalNotes}
+                      rows={4}
+                      placeholder="What went well? What should improve?"
+                      className="scrollbar-brand"
+                    />
+                  </div>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        setEvalBusy(true);
+                        const row = await createCallEvaluation(callId, { score: evalScore, notes: evalNotes });
+                        setEvaluations((prev) => [row, ...prev]);
+                        setEvalNotes("");
+                        toast.success("Evaluation saved");
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Failed to save evaluation");
+                      } finally {
+                        setEvalBusy(false);
+                      }
+                    }}
+                    disabled={evalBusy}
+                  >
+                    {evalBusy ? "Saving…" : "Save evaluation"}
+                  </Button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {evaluations.length === 0 ? (
+                    <div className="text-sm text-slate-300">No evaluations yet.</div>
+                  ) : (
+                    evaluations.map((ev) => (
+                      <div key={ev.id} className="rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-slate-400">Score</div>
+                          <div className="font-semibold text-slate-100">{ev.score}</div>
+                        </div>
+                        {ev.notes ? <div className="mt-2 text-slate-200 whitespace-pre-wrap">{ev.notes}</div> : null}
+                        <div className="mt-2 text-xs text-slate-500">{fmtTs(ev.createdAt)}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold">Labels & export</div>
+                <div className="mt-2 text-xs text-slate-400">Tag calls for later analysis or export the conversation.</div>
+                <div className="mt-3 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      value={labelInput}
+                      onChange={(e) => setLabelInput(e.target.value)}
+                      placeholder="e.g. qualified, escalated, billing_issue"
+                      className="flex-1 rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={async () => {
+                        const v = labelInput.trim();
+                        if (!v) return;
+                        try {
+                          const row = await addCallLabel(callId, v);
+                          setLabels((prev) => [row, ...prev]);
+                          setLabelInput("");
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Failed to add label");
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {labels.length === 0 ? (
+                      <div className="text-sm text-slate-300">No labels yet.</div>
+                    ) : (
+                      labels.map((l) => (
+                        <button
+                          key={l.id}
+                          onClick={async () => {
+                            try {
+                              await deleteCallLabel(callId, l.label);
+                              setLabels((prev) => prev.filter((x) => x.id !== l.id));
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : "Failed to remove label");
+                            }
+                          }}
+                          className="rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10"
+                          title="Click to remove"
+                        >
+                          {l.label}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <div className="pt-2">
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const out = await exportCall(callId);
+                          const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `call-${callId}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Export failed");
+                        }
+                      }}
+                      variant="secondary"
+                    >
+                      Export JSON
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
