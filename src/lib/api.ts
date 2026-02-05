@@ -24,6 +24,18 @@ export type AgentProfile = {
   updatedAt?: number;
 };
 
+export type AgentVariant = {
+  id: string;
+  agentId: string;
+  workspaceId: string;
+  name: string;
+  prompt: string;
+  trafficPercent: number;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type StartResponse = {
   livekitUrl: string;
   roomName: string;
@@ -445,6 +457,49 @@ export async function updateAgent(
   if (!res.ok) throw new Error(`updateAgent failed: ${await readError(res)}`);
   const data = (await res.json()) as { agent: AgentProfile };
   return data.agent;
+}
+
+export async function listAgentVariants(id: string): Promise<AgentVariant[]> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/variants`);
+  if (!res.ok) throw new Error(`listAgentVariants failed: ${await readError(res)}`);
+  const data = (await res.json()) as { variants: AgentVariant[] };
+  return data.variants;
+}
+
+export async function createAgentVariant(
+  id: string,
+  input: { name: string; prompt: string; trafficPercent: number; enabled?: boolean }
+): Promise<AgentVariant> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}/variants`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`createAgentVariant failed: ${await readError(res)}`);
+  const data = (await res.json()) as { variant: AgentVariant };
+  return data.variant;
+}
+
+export async function updateAgentVariant(
+  agentId: string,
+  variantId: string,
+  input: { name?: string; prompt?: string; trafficPercent?: number; enabled?: boolean }
+): Promise<AgentVariant> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/variants/${encodeURIComponent(variantId)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`updateAgentVariant failed: ${await readError(res)}`);
+  const data = (await res.json()) as { variant: AgentVariant };
+  return data.variant;
+}
+
+export async function deleteAgentVariant(agentId: string, variantId: string): Promise<void> {
+  const res = await apiFetch(`/api/agents/${encodeURIComponent(agentId)}/variants/${encodeURIComponent(variantId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`deleteAgentVariant failed: ${await readError(res)}`);
 }
 
 export async function previewTts(input: {

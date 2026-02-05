@@ -13,11 +13,16 @@ import {
   getAgent,
   getAgentAnalytics,
   listKbFolders,
+  listAgentVariants,
+  createAgentVariant,
+  updateAgentVariant,
+  deleteAgentVariant,
   previewTts,
   startAgent,
   updateAgent,
   type AgentAnalytics,
   type AgentProfile,
+  type AgentVariant,
   type CallTranscriptItem,
   type KbFolder,
   type StartResponse,
@@ -359,7 +364,13 @@ export function AgentDetailPage() {
   const [kbFoldersLoading, setKbFoldersLoading] = useState(false);
   const [knowledgeFolderIds, setKnowledgeFolderIds] = useState<string[]>([]);
 
-  const [activeTab, setActiveTab] = useState<"prompt" | "model" | "voice" | "transcriber" | "tools">("prompt");
+  const [activeTab, setActiveTab] = useState<"prompt" | "model" | "voice" | "transcriber" | "tools" | "ab">("prompt");
+  const [variants, setVariants] = useState<AgentVariant[]>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [variantName, setVariantName] = useState("");
+  const [variantPrompt, setVariantPrompt] = useState("");
+  const [variantTraffic, setVariantTraffic] = useState<number>(0);
+  const [variantEnabled, setVariantEnabled] = useState(true);
 
   // Default to ElevenLabs (user requested) and allow switching to Cartesia.
   const [voiceProvider, setVoiceProvider] = useState<"cartesia" | "elevenlabs">("elevenlabs");
@@ -568,6 +579,17 @@ export function AgentDetailPage() {
         setKbFolders([]);
       } finally {
         setKbFoldersLoading(false);
+      }
+
+      // Best-effort: load A/B variants for this agent.
+      try {
+        setVariantsLoading(true);
+        const v = await listAgentVariants(agentId);
+        setVariants(v);
+      } catch {
+        setVariants([]);
+      } finally {
+        setVariantsLoading(false);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load agent");
@@ -861,6 +883,7 @@ export function AgentDetailPage() {
               { id: "voice", label: "Voice" },
               { id: "transcriber", label: "Transcriber" },
               { id: "tools", label: "Tools" },
+              { id: "ab", label: "A/B" },
             ] as const
           ).map((t) => {
             const on = activeTab === t.id;
@@ -1273,6 +1296,136 @@ export function AgentDetailPage() {
             <div className="p-5">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
                 Placeholder tab — we can add tool toggles + descriptions here.
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {/* A/B Testing */}
+        {activeTab === "ab" ? (
+          <Card className="p-0">
+            <div className="border-b border-white/10 p-5">
+              <div className="text-lg font-semibold">A/B Prompt Testing</div>
+              <div className="mt-1 text-sm text-slate-300">
+                Create prompt variants and split traffic between them to see what performs best.
+              </div>
+            </div>
+            <div className="p-5 space-y-5">
+              <div className="rounded-3xl border border-white/10 bg-slate-950/30 p-4 space-y-3">
+                <div className="text-sm font-semibold">New variant</div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Variant name</div>
+                    <input
+                      value={variantName}
+                      onChange={(e) => setVariantName(e.target.value)}
+                      placeholder="e.g. Short and direct"
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs text-slate-400">Traffic %</div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={variantTraffic}
+                      onChange={(e) => setVariantTraffic(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1 text-xs text-slate-400">Variant prompt</div>
+                  <Textarea
+                    value={variantPrompt}
+                    onChange={setVariantPrompt}
+                    rows={8}
+                    placeholder="Paste a variant prompt here…"
+                    className="scrollbar-brand"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={variantEnabled}
+                    onChange={(e) => setVariantEnabled(e.target.checked)}
+                  />
+                  Enabled
+                </div>
+                <Button
+                  onClick={async () => {
+                    if (!agent) return;
+                    try {
+                      const row = await createAgentVariant(agent.id, {
+                        name: variantName.trim(),
+                        prompt: variantPrompt.trim(),
+                        trafficPercent: variantTraffic,
+                        enabled: variantEnabled,
+                      });
+                      setVariants((prev) => [row, ...prev]);
+                      setVariantName("");
+                      setVariantPrompt("");
+                      setVariantTraffic(0);
+                      setVariantEnabled(true);
+                      toast.success("Variant created");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Failed to create variant");
+                    }
+                  }}
+                  disabled={!variantName.trim() || !variantPrompt.trim()}
+                >
+                  Create variant
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">Existing variants</div>
+                {variantsLoading ? (
+                  <GlowSpinner label="Loading variants…" />
+                ) : variants.length === 0 ? (
+                  <div className="text-sm text-slate-300">No variants yet.</div>
+                ) : (
+                  variants.map((v) => (
+                    <div key={v.id} className="rounded-2xl border border-white/10 bg-slate-950/30 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-100">{v.name}</div>
+                          <div className="text-xs text-slate-400">Traffic: {v.trafficPercent}%</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="secondary"
+                            onClick={async () => {
+                              try {
+                                const row = await updateAgentVariant(agentId, v.id, { enabled: !v.enabled });
+                                setVariants((prev) => prev.map((x) => (x.id === v.id ? row : x)));
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Failed to update variant");
+                              }
+                            }}
+                          >
+                            {v.enabled ? "Disable" : "Enable"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={async () => {
+                              try {
+                                await deleteAgentVariant(agentId, v.id);
+                                setVariants((prev) => prev.filter((x) => x.id !== v.id));
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Failed to delete variant");
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-300 whitespace-pre-wrap">{v.prompt}</div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </Card>
