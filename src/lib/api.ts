@@ -101,6 +101,41 @@ export type CallEvaluation = {
   updatedAt: number;
 };
 
+export type OutboundJob = {
+  id: string;
+  workspaceId: string;
+  createdAt: number;
+  updatedAt: number;
+  status: "queued" | "dialing" | "in_call" | "completed" | "failed" | "canceled";
+  leadName: string;
+  phoneE164: string;
+  timezone: string;
+  attempts: number;
+  maxAttempts: number;
+  nextAttemptAt?: number | null;
+  lastError?: string;
+  roomName?: string | null;
+  agentId: string;
+  recordingEnabled: boolean;
+  dnc: boolean;
+  dncReason?: string;
+  metadata?: any;
+  providerCallId?: string | null;
+  callId?: string | null;
+  lockedAt?: number | null;
+  lockedBy?: string | null;
+};
+
+export type OutboundJobLog = {
+  id: string;
+  jobId: string;
+  workspaceId: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  meta?: any;
+  createdAt: number;
+};
+
 export type CallLabel = {
   id: string;
   callId: string;
@@ -645,6 +680,62 @@ export async function deleteCallLabel(id: string, label: string): Promise<void> 
     body: JSON.stringify({ label }),
   });
   if (!res.ok) throw new Error(`deleteCallLabel failed: ${await readError(res)}`);
+}
+
+export async function listOutboundJobs(input?: { status?: string; limit?: number; offset?: number }): Promise<OutboundJob[]> {
+  const qs = new URLSearchParams();
+  if (input?.status) qs.set("status", input.status);
+  if (typeof input?.limit === "number") qs.set("limit", String(input.limit));
+  if (typeof input?.offset === "number") qs.set("offset", String(input.offset));
+  const path = qs.toString() ? `/api/outbound/jobs?${qs.toString()}` : "/api/outbound/jobs";
+  const res = await apiFetch(path);
+  if (!res.ok) throw new Error(`listOutboundJobs failed: ${await readError(res)}`);
+  const data = (await res.json()) as { jobs: OutboundJob[] };
+  return data.jobs;
+}
+
+export async function createOutboundJob(input: {
+  agentId: string;
+  leadName?: string;
+  phoneE164: string;
+  timezone?: string;
+  maxAttempts?: number;
+  recordingEnabled?: boolean;
+  metadata?: any;
+}): Promise<OutboundJob> {
+  const res = await apiFetch(`/api/outbound/jobs`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`createOutboundJob failed: ${await readError(res)}`);
+  const data = (await res.json()) as { job: OutboundJob };
+  return data.job;
+}
+
+export async function cancelOutboundJob(id: string): Promise<OutboundJob> {
+  const res = await apiFetch(`/api/outbound/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+  if (!res.ok) throw new Error(`cancelOutboundJob failed: ${await readError(res)}`);
+  const data = (await res.json()) as { job: OutboundJob };
+  return data.job;
+}
+
+export async function dncOutboundJob(id: string, reason?: string): Promise<OutboundJob> {
+  const res = await apiFetch(`/api/outbound/jobs/${encodeURIComponent(id)}/dnc`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(`dncOutboundJob failed: ${await readError(res)}`);
+  const data = (await res.json()) as { job: OutboundJob };
+  return data.job;
+}
+
+export async function listOutboundJobLogs(id: string): Promise<OutboundJobLog[]> {
+  const res = await apiFetch(`/api/outbound/jobs/${encodeURIComponent(id)}/logs`);
+  if (!res.ok) throw new Error(`listOutboundJobLogs failed: ${await readError(res)}`);
+  const data = (await res.json()) as { logs: OutboundJobLog[] };
+  return data.logs;
 }
 
 export async function endCall(

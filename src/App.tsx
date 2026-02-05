@@ -5,10 +5,12 @@ import { AgentsPage } from "./pages/AgentsPage";
 import { AgentDetailPage } from "./pages/AgentDetailPage";
 import { KnowledgeBasePage } from "./pages/KnowledgeBasePage";
 import { CallHistoryPage } from "./pages/CallHistoryPage";
+import { CallDetailPage } from "./pages/CallDetailPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { BillingPage } from "./pages/BillingPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { PhoneNumbersPage } from "./pages/PhoneNumbersPage";
+import { OutboundCallsPage } from "./pages/OutboundCallsPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { isAuthed, signOut } from "./lib/auth";
 import { getMe } from "./lib/api";
@@ -61,8 +63,10 @@ function App() {
           <Route path="agents/:id" element={<AgentDetailPage />} />
           <Route path="knowledge" element={<KnowledgeBasePage />} />
           <Route path="phone-numbers" element={<PhoneNumbersPage />} />
+          <Route path="outbound" element={<OutboundCallsPage />} />
           <Route path="calls" element={<CallHistoryPage />} />
           <Route path="calls/:id" element={<CallHistoryPage />} />
+          <Route path="call/:id" element={<CallDetailPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="billing" element={<BillingPage />} />
           <Route path="settings" element={<SettingsPage />} />

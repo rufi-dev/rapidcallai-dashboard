@@ -294,7 +294,7 @@ export function CallHistoryPage() {
             <div className="flex items-center gap-2">
               {selectedId ? (
                 <button
-                  onClick={() => nav(`/app/calls/${encodeURIComponent(selectedId)}`)}
+                  onClick={() => nav(`/app/call/${encodeURIComponent(selectedId)}`)}
                   className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-white/10"
                   title="Open full details"
                 >
