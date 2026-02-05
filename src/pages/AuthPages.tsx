@@ -28,8 +28,18 @@ function friendlyAuthError(kind: "login" | "register", e: unknown): string {
   if (msg.startsWith("{") && msg.endsWith("}")) {
     try {
       const parsed = JSON.parse(msg) as unknown;
-      if (parsed && typeof parsed === "object" && "error" in (parsed as any) && typeof (parsed as any).error === "string") {
-        msg = String((parsed as any).error).trim();
+      if (parsed && typeof parsed === "object") {
+        const maybeErr = (parsed as any).error;
+        const maybeDetails = (parsed as any).details;
+        if (typeof maybeErr === "string" && maybeErr.trim()) msg = String(maybeErr).trim();
+        if (maybeDetails && typeof maybeDetails === "object" && (maybeDetails as any).fieldErrors) {
+          const fieldErrors = (maybeDetails as any).fieldErrors as Record<string, string[]>;
+          const firstKey = Object.keys(fieldErrors || {})[0];
+          const firstMsg = firstKey && Array.isArray(fieldErrors[firstKey]) ? fieldErrors[firstKey][0] : null;
+          if (firstKey && firstMsg) {
+            msg = `${firstKey}: ${firstMsg}`;
+          }
+        }
       }
     } catch {
       // ignore
