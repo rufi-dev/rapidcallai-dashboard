@@ -1,20 +1,19 @@
-const FLAG = "auth_ok";
+const KEY = "auth_token";
 
 export function isAuthed(): boolean {
-  return Boolean(sessionStorage.getItem(FLAG));
+  return Boolean(sessionStorage.getItem(KEY));
 }
 
 export function getToken(): string | null {
-  return null;
+  return sessionStorage.getItem(KEY);
 }
 
 export function setToken(token: string) {
-  void token;
-  sessionStorage.setItem(FLAG, "1");
+  sessionStorage.setItem(KEY, token);
 }
 
 export function signOut() {
-  sessionStorage.removeItem(FLAG);
+  sessionStorage.removeItem(KEY);
   try {
     localStorage.removeItem("auth_token");
   } catch {
