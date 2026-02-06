@@ -230,6 +230,20 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
   );
 }
 
+function MicrophoneEnabler() {
+  const room = useRoomContext();
+  
+  useEffect(() => {
+    // Explicitly ensure microphone is enabled after connection
+    // This fixes cases where browser permissions delay audio publishing
+    room.localParticipant.setMicrophoneEnabled(true).catch((e) => {
+      console.warn("Failed to enable microphone:", e);
+    });
+  }, [room]);
+  
+  return null;
+}
+
 function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
   const room = useRoomContext();
   const [agentReady, setAgentReady] = useState(false);
@@ -1485,6 +1499,9 @@ export function AgentDetailPage() {
                   connect={true}
                   audio={true}
                   video={false}
+                  onConnected={() => {
+                    // Microphone will be enabled via useRoomContext hook in child components
+                  }}
                   onDisconnected={async () => {
                     await finalizeCall("ended");
                     setSession(null);
@@ -1494,6 +1511,7 @@ export function AgentDetailPage() {
                   className="h-full"
                 >
                   <RoomAudioRenderer />
+                  <MicrophoneEnabler />
                   <div className="flex h-full min-h-0 flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <RoomStatusPill onReadyChange={(ready) => setAgentReady(ready)} />
