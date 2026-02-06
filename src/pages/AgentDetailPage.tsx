@@ -380,14 +380,16 @@ function TalkControls(props: { onExit: () => void }) {
   }, [room]);
 
   async function toggleMic() {
-    const lp: any = room.localParticipant as any;
-    const current = Boolean(lp?.isMicrophoneEnabled ?? micEnabled);
+    const lp = room.localParticipant;
+    const desired = !lp.isMicrophoneEnabled;
     try {
-      await room.localParticipant.setMicrophoneEnabled(!current);
-      setMicEnabled(!current);
+      await lp.setMicrophoneEnabled(desired);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to toggle microphone");
     }
+    // Always read authoritative state from the SDK after the await,
+    // instead of using the pre-await value which may be stale.
+    setMicEnabled(lp.isMicrophoneEnabled);
   }
 
   return (
@@ -1559,9 +1561,6 @@ export function AgentDetailPage() {
                   connect={true}
                   audio={true}
                   video={false}
-                  onConnected={() => {
-                    // Microphone will be enabled via useRoomContext hook in child components
-                  }}
                   onDisconnected={async () => {
                     await finalizeCall("ended");
                     setSession(null);
