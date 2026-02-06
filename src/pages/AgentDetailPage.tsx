@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Check, ChevronDown, ClipboardCopy, CloudUpload, Mic, MicOff, Play, Save, Search, Undo2, Wand2 } from "lucide-react";
-import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment } from "livekit-client";
+import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment, type LocalTrackPublication } from "livekit-client";
 import { toast } from "sonner";
 import { GlowSpinner } from "../components/loading";
 
@@ -234,11 +234,44 @@ function MicrophoneEnabler() {
   const room = useRoomContext();
   
   useEffect(() => {
-    // Explicitly ensure microphone is enabled after connection
-    // This fixes cases where browser permissions delay audio publishing
-    room.localParticipant.setMicrophoneEnabled(true).catch((e) => {
-      console.warn("Failed to enable microphone:", e);
-    });
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    async function enableMicrophone() {
+      try {
+        const lp = room.localParticipant;
+        const isEnabled = lp.isMicrophoneEnabled;
+        
+        if (!isEnabled) {
+          await lp.setMicrophoneEnabled(true);
+          console.log("Microphone enabled successfully");
+        }
+      } catch (e) {
+        console.warn("Failed to enable microphone:", e);
+        // Retry with exponential backoff
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
+          setTimeout(enableMicrophone, delay);
+        }
+      }
+    }
+    
+    // Try immediately
+    enableMicrophone();
+    
+    // Also listen for when tracks are published to ensure mic is enabled
+    function onTrackPublished(publication: LocalTrackPublication) {
+      if (publication.kind === "audio" && !room.localParticipant.isMicrophoneEnabled) {
+        enableMicrophone();
+      }
+    }
+    
+    room.localParticipant.on(RoomEvent.LocalTrackPublished, onTrackPublished);
+    
+    return () => {
+      room.localParticipant.off(RoomEvent.LocalTrackPublished, onTrackPublished);
+    };
   }, [room]);
   
   return null;
@@ -315,8 +348,35 @@ function TalkControls(props: { onExit: () => void }) {
   const [micEnabled, setMicEnabled] = useState(true);
 
   useEffect(() => {
-    const lp: any = room.localParticipant as any;
-    setMicEnabled(Boolean(lp?.isMicrophoneEnabled ?? true));
+    const lp = room.localParticipant;
+    
+    function updateMicState() {
+      setMicEnabled(lp.isMicrophoneEnabled);
+    }
+    
+    // Initial state
+    updateMicState();
+    
+    // Listen for track publication/unpublication events
+    function onTrackPublished(publication: LocalTrackPublication) {
+      if (publication.kind === "audio") {
+        updateMicState();
+      }
+    }
+    
+    function onTrackUnpublished(publication: LocalTrackPublication) {
+      if (publication.kind === "audio") {
+        updateMicState();
+      }
+    }
+    
+    lp.on(RoomEvent.LocalTrackPublished, onTrackPublished);
+    lp.on(RoomEvent.LocalTrackUnpublished, onTrackUnpublished);
+    
+    return () => {
+      lp.off(RoomEvent.LocalTrackPublished, onTrackPublished);
+      lp.off(RoomEvent.LocalTrackUnpublished, onTrackUnpublished);
+    };
   }, [room]);
 
   async function toggleMic() {
