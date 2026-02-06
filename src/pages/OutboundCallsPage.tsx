@@ -9,9 +9,11 @@ import {
   cancelOutboundJob,
   dncOutboundJob,
   listOutboundJobLogs,
+  listPhoneNumbers,
   type AgentProfile,
   type OutboundJob,
   type OutboundJobLog,
+  type PhoneNumber,
 } from "../lib/api";
 import { GlowSpinner } from "../components/loading";
 
@@ -27,6 +29,7 @@ function fmtTs(ms: number | null | undefined): string {
 export function OutboundCallsPage() {
   const nav = useNavigate();
   const [agents, setAgents] = useState<AgentProfile[]>([]);
+  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [jobs, setJobs] = useState<OutboundJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -35,25 +38,19 @@ export function OutboundCallsPage() {
   const [logsLoading, setLogsLoading] = useState(false);
 
   const [agentId, setAgentId] = useState("");
-  const [leadName, setLeadName] = useState("");
+  const [fromNumberE164, setFromNumberE164] = useState("");
   const [phoneE164, setPhoneE164] = useState("");
-  const [campaign, setCampaign] = useState("");
-  const [timezone, setTimezone] = useState<string>(() => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    } catch {
-      return "UTC";
-    }
-  });
   const [recordingEnabled, setRecordingEnabled] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const [a, j] = await Promise.all([listAgents(), listOutboundJobs({ limit: 200 })]);
+      const [a, j, pn] = await Promise.all([listAgents(), listOutboundJobs({ limit: 200 }), listPhoneNumbers()]);
       setAgents(a);
       setJobs(j);
+      setPhoneNumbers(pn.filter((p) => p.status === "active" || p.status === "partial"));
       if (!agentId && a.length) setAgentId(a[0].id);
+      if (!fromNumberE164 && pn.length) setFromNumberE164(pn[0].e164);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load outbound jobs");
     } finally {
@@ -101,38 +98,29 @@ export function OutboundCallsPage() {
               </select>
             </div>
             <div>
-              <div className="mb-1 text-xs text-slate-400">Phone (E.164)</div>
+              <div className="mb-1 text-xs text-slate-400">From number</div>
+              <select
+                value={fromNumberE164}
+                onChange={(e) => setFromNumberE164(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+              >
+                {phoneNumbers.length === 0 ? (
+                  <option value="">No numbers available</option>
+                ) : (
+                  phoneNumbers.map((pn) => (
+                    <option key={pn.id} value={pn.e164}>
+                      {pn.e164}{pn.label ? ` — ${pn.label}` : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div>
+              <div className="mb-1 text-xs text-slate-400">Dial number (E.164)</div>
               <input
                 value={phoneE164}
                 onChange={(e) => setPhoneE164(e.target.value)}
                 placeholder="+447700900123"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
-              />
-            </div>
-            <div>
-              <div className="mb-1 text-xs text-slate-400">Lead name</div>
-              <input
-                value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
-                placeholder="Jane Doe"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
-              />
-            </div>
-            <div>
-              <div className="mb-1 text-xs text-slate-400">Campaign</div>
-              <input
-                value={campaign}
-                onChange={(e) => setCampaign(e.target.value)}
-                placeholder="spring-hiring"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
-              />
-            </div>
-            <div>
-              <div className="mb-1 text-xs text-slate-400">Timezone</div>
-              <input
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                placeholder="Europe/London"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
               />
             </div>
@@ -155,16 +143,13 @@ export function OutboundCallsPage() {
                   setBusy(true);
                   const job = await createOutboundJob({
                     agentId,
-                    leadName: leadName.trim(),
                     phoneE164: phoneE164.trim(),
-                    timezone: timezone.trim() || "UTC",
                     recordingEnabled,
-                    metadata: campaign.trim() ? { campaign: campaign.trim() } : {},
+                    metadata: fromNumberE164 ? { fromNumber: fromNumberE164 } : {},
                   });
                   setJobs((prev) => [job, ...prev]);
-                  setLeadName("");
                   setPhoneE164("");
-                  toast.success("Job queued");
+                  toast.success("Call queued");
                 } catch (e) {
                   toast.error(e instanceof Error ? e.message : "Failed to create job");
                 } finally {
@@ -173,7 +158,7 @@ export function OutboundCallsPage() {
               }}
               disabled={busy || !agentId || !phoneE164.trim()}
             >
-              {busy ? "Queuing…" : "Queue outbound call"}
+              {busy ? "Dialing…" : "Call"}
             </Button>
           </div>
         </Card>
@@ -191,11 +176,9 @@ export function OutboundCallsPage() {
                   <thead className="text-xs text-slate-400">
                     <tr>
                       <th className="px-2 py-2 text-left">Created</th>
-                      <th className="px-2 py-2 text-left">Lead</th>
-                      <th className="px-2 py-2 text-left">Phone</th>
+                      <th className="px-2 py-2 text-left">To</th>
                       <th className="px-2 py-2 text-left">Status</th>
                       <th className="px-2 py-2 text-left">Attempts</th>
-                      <th className="px-2 py-2 text-left">Next</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -206,13 +189,11 @@ export function OutboundCallsPage() {
                         onClick={() => setSelectedId(j.id)}
                       >
                         <td className="px-2 py-2 text-xs text-slate-400">{fmtTs(j.createdAt)}</td>
-                        <td className="px-2 py-2 text-slate-100">{j.leadName || "—"}</td>
                         <td className="px-2 py-2 text-slate-300">{j.phoneE164}</td>
                         <td className="px-2 py-2 text-slate-200">{j.status}</td>
                         <td className="px-2 py-2 text-slate-300">
                           {j.attempts}/{j.maxAttempts}
                         </td>
-                        <td className="px-2 py-2 text-slate-400">{fmtTs(j.nextAttemptAt ?? null)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -237,8 +218,8 @@ export function OutboundCallsPage() {
           <div className="mt-4 flex-1 min-h-0 overflow-auto scrollbar-brand pr-1 space-y-4">
             <div className="rounded-3xl bg-slate-950/35 p-4 text-sm space-y-2">
               <div className="text-xs text-slate-400 font-mono">{selectedJob.id}</div>
-              <div className="text-slate-100">{selectedJob.leadName || "Unnamed lead"}</div>
-              <div className="text-slate-300">{selectedJob.phoneE164}</div>
+              <div className="text-slate-100">{selectedJob.phoneE164}</div>
+              {selectedJob.leadName ? <div className="text-xs text-slate-300">{selectedJob.leadName}</div> : null}
               <div className="text-xs text-slate-400">Status: {selectedJob.status}</div>
               {selectedJob.lastError ? <div className="text-xs text-rose-300">{selectedJob.lastError}</div> : null}
               {selectedJob.callId ? (

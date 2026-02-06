@@ -349,7 +349,7 @@ export type PhoneNumber = {
   e164: string;
   label: string;
   provider: "twilio";
-  status: "unconfigured" | "ready" | "error";
+  status: "unconfigured" | "ready" | "active" | "partial" | "error";
   twilioNumberSid: string | null;
   livekitInboundTrunkId: string | null;
   livekitOutboundTrunkId: string | null;

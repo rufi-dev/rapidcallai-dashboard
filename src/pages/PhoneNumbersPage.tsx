@@ -273,10 +273,10 @@ export function PhoneNumbersPage() {
                     className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 hover:bg-white/10"
                     onClick={() => {
                       setMenuOpen(false);
-                      toast.message("SIP trunk connection UI will be Phase 3 (after Twilio).");
+                        toast.message("Coming soon.");
                     }}
                   >
-                    Connect via SIP trunking
+                    Import existing number
                   </button>
                 </div>
               </div>
@@ -334,7 +334,7 @@ export function PhoneNumbersPage() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Phone numbers</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-300">
-              Phase 1: store mappings. Phase 2: buy via Twilio + subaccounts. Phase 3: connect SIP trunks to LiveKit.
+              Buy a phone number and it will be automatically configured for both inbound and outbound calls.
             </p>
           </div>
           <div className="rounded-2xl bg-brand-500/10 px-4 py-2 text-sm text-brand-200 shadow-glow">
@@ -450,105 +450,7 @@ export function PhoneNumbersPage() {
               </div>
             </Card>
 
-            <Card>
-              <div className="text-base font-semibold">SIP trunking (LiveKit)</div>
-              <div className="mt-2 text-sm text-slate-300">
-                For Twilio inbound calls, SIP auth (username/password) is optional but recommended. Your call will still route via the inbound trunk
-                + dispatch rule if you leave these empty.
-              </div>
-              <div className="mt-2 text-xs text-slate-400">
-                Quick checklist:
-                <span className="ml-2 font-mono">
-                  1) LiveKit: create Inbound Trunk (set auth username/password) · 2) LiveKit: create Dispatch Rule (callee or individual) · 3)
-                  Twilio number Voice webhook: POST to <span className="text-slate-200">/api/twilio/inbound</span> · 4) Set API env{" "}
-                  <span className="text-slate-200">LIVEKIT_SIP_ENDPOINT</span> to your LiveKit SIP endpoint (e.g.{" "}
-                  <span className="text-slate-200">vjnxecm0tjk.sip.livekit.cloud</span>)
-                </span>
-              </div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <div className="text-xs text-slate-400">LiveKit SIP username</div>
-                  <div className="mt-2">
-                    <Input
-                      value={selected.livekitSipUsername ?? ""}
-                      onChange={(v) =>
-                        setPhoneNumbers((prev) =>
-                          prev.map((p) => (p.id === selected.id ? { ...p, livekitSipUsername: v } : p))
-                        )
-                      }
-                      placeholder="e.g. my_sip_user"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-400">LiveKit SIP password</div>
-                  <div className="mt-2">
-                    <Input
-                      value={selected.livekitSipPassword ?? ""}
-                      onChange={(v) =>
-                        setPhoneNumbers((prev) =>
-                          prev.map((p) => (p.id === selected.id ? { ...p, livekitSipPassword: v } : p))
-                        )
-                      }
-                      placeholder="e.g. my_sip_pass"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <Button
-                  onClick={() =>
-                    onSavePatch({
-                      livekitSipUsername: selected.livekitSipUsername ? selected.livekitSipUsername : null,
-                      livekitSipPassword: selected.livekitSipPassword ? selected.livekitSipPassword : null,
-                    })
-                  }
-                >
-                  Save SIP credentials
-                </Button>
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <div className="text-xs text-slate-400">Inbound trunk ID</div>
-                  <div className="mt-2">
-                    <Input
-                      value={selected.livekitInboundTrunkId ?? ""}
-                      onChange={(v) =>
-                        setPhoneNumbers((prev) =>
-                          prev.map((p) => (p.id === selected.id ? { ...p, livekitInboundTrunkId: v } : p))
-                        )
-                      }
-                      placeholder="e.g. it_123..."
-                    />
-                  </div>
-                  <div className="mt-2">
-                    <Button onClick={() => onSavePatch({ livekitInboundTrunkId: selected.livekitInboundTrunkId || null })}>
-                      Save inbound trunk
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-400">Outbound trunk ID</div>
-                  <div className="mt-2">
-                    <Input
-                      value={selected.livekitOutboundTrunkId ?? ""}
-                      onChange={(v) =>
-                        setPhoneNumbers((prev) =>
-                          prev.map((p) => (p.id === selected.id ? { ...p, livekitOutboundTrunkId: v } : p))
-                        )
-                      }
-                      placeholder="e.g. ot_123..."
-                    />
-                  </div>
-                  <div className="mt-2">
-                    <Button onClick={() => onSavePatch({ livekitOutboundTrunkId: selected.livekitOutboundTrunkId || null })}>
-                      Save outbound trunk
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
+{/* SIP trunking is auto-configured on number purchase — no manual UI needed */}
           </div>
         )}
       </div>
