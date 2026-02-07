@@ -148,6 +148,8 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
           ? props.agentName || participant?.name || identity || "Agent"
           : participant?.name || "Web User";
 
+      console.log(`[Transcript] ${role}/${speaker} (${identity ?? "unknown"}):`, segments.map((s) => s.text).join(" "));
+
       const map = mapRef.current;
       for (const s of segments) {
         map.set(s.id, {
@@ -232,48 +234,75 @@ function TranscriptPanel(props: { agentName?: string; onTranscript?: (items: Cal
 
 function MicrophoneEnabler() {
   const room = useRoomContext();
-  
+
   useEffect(() => {
+    let cancelled = false;
     let retryCount = 0;
-    const maxRetries = 5;
-    
+    const maxRetries = 12; // ~30 s total with back-off
+
     async function enableMicrophone() {
+      if (cancelled) return;
       try {
         const lp = room.localParticipant;
-        const isEnabled = lp.isMicrophoneEnabled;
-        
-        if (!isEnabled) {
-          await lp.setMicrophoneEnabled(true);
-          console.log("Microphone enabled successfully");
+
+        // Wait until the room is actually connected before touching media
+        if (room.state !== "connected") {
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(enableMicrophone, 500);
+          } else {
+            console.error("[MicrophoneEnabler] Room never reached connected state");
+            toast.error("Microphone could not be enabled — room not connected");
+          }
+          return;
         }
+
+        if (!lp.isMicrophoneEnabled) {
+          await lp.setMicrophoneEnabled(true);
+        }
+
+        // Verify an audio track was actually published
+        const hasAudio = Array.from(lp.trackPublications.values()).some(
+          (pub) => pub.kind === "audio" && pub.track
+        );
+        if (hasAudio) {
+          console.log("[MicrophoneEnabler] Microphone enabled & audio track published");
+          return; // success
+        }
+
+        // Track not published yet — retry
+        throw new Error("Audio track not found after enabling microphone");
       } catch (e) {
-        console.warn("Failed to enable microphone:", e);
-        // Retry with exponential backoff
+        if (cancelled) return;
+        console.warn("[MicrophoneEnabler] Attempt failed:", e);
         if (retryCount < maxRetries) {
           retryCount++;
           const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
           setTimeout(enableMicrophone, delay);
+        } else {
+          console.error("[MicrophoneEnabler] Gave up after", maxRetries, "retries");
+          toast.error("Could not enable microphone. Check browser permissions and try again.");
         }
       }
     }
-    
-    // Try immediately
+
+    // Kick off on mount
     enableMicrophone();
-    
-    // Also listen for when tracks are published to ensure mic is enabled
-    function onTrackPublished(publication: LocalTrackPublication) {
-      if (publication.kind === "audio" && !room.localParticipant.isMicrophoneEnabled) {
+
+    // Also react to room state changes (in case room wasn't connected yet)
+    function onStateChange() {
+      if (room.state === "connected") {
         enableMicrophone();
       }
     }
-    
-    room.localParticipant.on(RoomEvent.LocalTrackPublished, onTrackPublished);
-    
+    room.on(RoomEvent.Connected, onStateChange);
+
     return () => {
-      room.localParticipant.off(RoomEvent.LocalTrackPublished, onTrackPublished);
+      cancelled = true;
+      room.off(RoomEvent.Connected, onStateChange);
     };
   }, [room]);
-  
+
   return null;
 }
 
@@ -345,7 +374,8 @@ function TalkLoadingOverlay(props: { show: boolean }) {
 
 function TalkControls(props: { onExit: () => void }) {
   const room = useRoomContext();
-  const [micEnabled, setMicEnabled] = useState(true);
+  // Start with actual SDK state instead of assuming true
+  const [micEnabled, setMicEnabled] = useState(() => room.localParticipant.isMicrophoneEnabled);
 
   useEffect(() => {
     const lp = room.localParticipant;
@@ -370,10 +400,14 @@ function TalkControls(props: { onExit: () => void }) {
       }
     }
     
+    // Also poll periodically to catch async mic state changes
+    const pollId = setInterval(updateMicState, 1000);
+    
     lp.on(RoomEvent.LocalTrackPublished, onTrackPublished);
     lp.on(RoomEvent.LocalTrackUnpublished, onTrackUnpublished);
     
     return () => {
+      clearInterval(pollId);
       lp.off(RoomEvent.LocalTrackPublished, onTrackPublished);
       lp.off(RoomEvent.LocalTrackUnpublished, onTrackUnpublished);
     };
