@@ -496,6 +496,11 @@ export function AgentDetailPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
+  // Background audio
+  const [bgAudioPreset, setBgAudioPreset] = useState<"none" | "office" | "keyboard">("none");
+  const [bgAmbientVolume, setBgAmbientVolume] = useState(0.7);
+  const [bgThinkingVolume, setBgThinkingVolume] = useState(0.7);
+
   const [panelOpen, setPanelOpen] = useState(false);
   const [session, setSession] = useState<StartResponse | null>(null);
   const [starting, setStarting] = useState(false);
@@ -676,6 +681,11 @@ export function AgentDetailPage() {
         setVoiceId(String(a.voice?.voiceId || CARTESIA_VOICES[0].id));
       }
 
+      // Background audio
+      setBgAudioPreset((a.backgroundAudio?.preset as "none" | "office" | "keyboard") ?? "none");
+      setBgAmbientVolume(a.backgroundAudio?.ambientVolume ?? 0.7);
+      setBgThinkingVolume(a.backgroundAudio?.thinkingVolume ?? 0.7);
+
       // Best-effort analytics load for header stats
       try {
         const an = await getAgentAnalytics(agentId);
@@ -738,9 +748,12 @@ export function AgentDetailPage() {
       savedMaxCallMinutes !== maxCallMinutes ||
       (savedVoice.provider ?? "cartesia") !== voiceProvider ||
       (savedVoice.model ?? (voiceProvider === "elevenlabs" ? ELEVENLABS_MODELS[0].id : CARTESIA_MODELS[0].id)) !== voiceModel ||
-      (savedVoice.voiceId ?? "") !== voiceId
+      (savedVoice.voiceId ?? "") !== voiceId ||
+      (agent?.backgroundAudio?.preset ?? "none") !== bgAudioPreset ||
+      (agent?.backgroundAudio?.ambientVolume ?? 0.7) !== bgAmbientVolume ||
+      (agent?.backgroundAudio?.thinkingVolume ?? 0.7) !== bgThinkingVolume
     );
-  }, [agent, draftPrompt, llmModel, knowledgeFolderIds, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, maxCallMinutes, voiceProvider, voiceModel, voiceId]);
+  }, [agent, draftPrompt, llmModel, knowledgeFolderIds, welcomeMode, aiMessageMode, aiMessageText, aiDelaySeconds, maxCallMinutes, voiceProvider, voiceModel, voiceId, bgAudioPreset, bgAmbientVolume, bgThinkingVolume]);
   const canSave = useMemo(() => draftPrompt.trim().length > 0 && isDirty && !saving, [draftPrompt, isDirty, saving]);
 
   async function onSave() {
@@ -764,6 +777,11 @@ export function AgentDetailPage() {
           provider: voiceProvider,
           model: voiceModel,
           voiceId,
+        },
+        backgroundAudio: {
+          preset: bgAudioPreset,
+          ambientVolume: bgAmbientVolume,
+          thinkingVolume: bgThinkingVolume,
         },
       });
       setAgent(updated);
@@ -799,6 +817,11 @@ export function AgentDetailPage() {
           provider: voiceProvider,
           model: voiceModel,
           voiceId,
+        },
+        backgroundAudio: {
+          preset: bgAudioPreset,
+          ambientVolume: bgAmbientVolume,
+          thinkingVolume: bgThinkingVolume,
         },
       });
       setAgent(updated);
@@ -1381,6 +1404,68 @@ export function AgentDetailPage() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* ── Background Audio ── */}
+            <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+              <h3 className="text-sm font-semibold text-white mb-1">Background Audio</h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Add ambient background sounds during calls (web &amp; phone). Makes the agent feel more natural.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {([
+                  { key: "none", label: "None", desc: "No background audio" },
+                  { key: "office", label: "Office Ambience", desc: "Busy office chatter & ambient noise" },
+                  { key: "keyboard", label: "Keyboard Typing", desc: "Operator typing sounds" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setBgAudioPreset(opt.key)}
+                    className={`rounded-2xl border p-3 text-left transition-all ${
+                      bgAudioPreset === opt.key
+                        ? "border-brand-500/60 bg-brand-500/10 ring-1 ring-brand-500/30"
+                        : "border-white/10 bg-slate-950/40 hover:bg-white/5"
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-white">{opt.label}</div>
+                    <div className="mt-0.5 text-xs text-slate-400">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {bgAudioPreset !== "none" && (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">
+                      Ambient Volume — {Math.round(bgAmbientVolume * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={bgAmbientVolume}
+                      onChange={(e) => setBgAmbientVolume(Number(e.target.value))}
+                      className="w-full accent-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">
+                      Thinking Volume — {Math.round(bgThinkingVolume * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={bgThinkingVolume}
+                      onChange={(e) => setBgThinkingVolume(Number(e.target.value))}
+                      className="w-full accent-brand-500"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         ) : null}

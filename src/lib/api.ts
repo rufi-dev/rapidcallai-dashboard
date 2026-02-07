@@ -20,6 +20,11 @@ export type AgentProfile = {
     model?: string | null;
     voiceId?: string | null;
   };
+  backgroundAudio?: {
+    preset?: "none" | "office" | "keyboard";
+    ambientVolume?: number;
+    thinkingVolume?: number;
+  };
   createdAt: number;
   publishedAt?: number | null;
   updatedAt?: number;
@@ -486,6 +491,7 @@ export async function updateAgent(
     maxCallSeconds?: number;
     welcome?: AgentProfile["welcome"];
     voice?: AgentProfile["voice"];
+    backgroundAudio?: AgentProfile["backgroundAudio"];
   }
 ): Promise<AgentProfile> {
   const res = await apiFetch(`/api/agents/${encodeURIComponent(id)}`, {
