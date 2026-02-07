@@ -798,6 +798,12 @@ export async function startBillingUpgrade(): Promise<{ ok: true; url: string }> 
   return (await res.json()) as { ok: true; url: string };
 }
 
+export async function verifyBillingUpgrade(): Promise<{ ok: boolean; status: string }> {
+  const res = await apiFetch(`/api/billing/verify-upgrade`, { method: "POST" });
+  if (!res.ok) throw new Error(`verifyBillingUpgrade failed: ${await readError(res)}`);
+  return (await res.json()) as { ok: boolean; status: string };
+}
+
 export async function getUpcomingInvoice(): Promise<UpcomingInvoiceResponse> {
   const res = await apiFetch(`/api/billing/upcoming-invoice`);
   if (!res.ok) throw new Error(`getUpcomingInvoice failed: ${await readError(res)}`);

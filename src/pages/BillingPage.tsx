@@ -8,6 +8,7 @@ import {
   getBillingUsageSummary,
   getUpcomingInvoice,
   startBillingUpgrade,
+  verifyBillingUpgrade,
   type BillingInvoice,
   type BillingInvoicesResponse,
   type BillingUsageSummaryResponse,
@@ -47,6 +48,24 @@ export function BillingPage() {
     let mounted = true;
     (async () => {
       try {
+        // If the user just returned from Stripe checkout (?upgrade=success), verify & complete
+        // the upgrade directly via the API. This works even if the Stripe webhook is delayed
+        // or misconfigured.
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("upgrade") === "success") {
+          try {
+            const v = await verifyBillingUpgrade();
+            if (v.ok && v.status === "upgraded") {
+              toast.success("Upgrade complete! Your plan is now active.");
+            }
+          } catch (e) {
+            // Non-blocking: if verification fails, we still load status (webhook may have worked).
+            console.warn("[billing] verify-upgrade failed:", e);
+          }
+          // Clean the URL so a refresh doesn't re-verify.
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+
         const s = await getBillingStatus();
         if (!mounted) return;
         setStatus(s);
