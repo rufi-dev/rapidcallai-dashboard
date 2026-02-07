@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Check, ChevronDown, ClipboardCopy, CloudUpload, Mic, MicOff, Play, Save, Search, Undo2, Wand2 } from "lucide-react";
-import { Track, type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment, type LocalTrackPublication } from "livekit-client";
+import { type Participant, RoomEvent, type TrackPublication, type TranscriptionSegment, type LocalTrackPublication } from "livekit-client";
 import { toast } from "sonner";
 import { GlowSpinner } from "../components/loading";
 
@@ -306,135 +306,6 @@ function MicrophoneEnabler() {
   return null;
 }
 
-function MicrophoneSignalWatcher() {
-  const room = useRoomContext();
-  const warnedRef = useRef(false);
-  const lastSignalRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    let rafId = 0;
-    let audioCtx: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let source: MediaStreamAudioSourceNode | null = null;
-
-    function stopMonitoring() {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = 0;
-      }
-      if (source) {
-        try {
-          source.disconnect();
-        } catch {
-          // no-op
-        }
-        source = null;
-      }
-      if (analyser) {
-        try {
-          analyser.disconnect();
-        } catch {
-          // no-op
-        }
-        analyser = null;
-      }
-      if (audioCtx) {
-        try {
-          audioCtx.close();
-        } catch {
-          // no-op
-        }
-        audioCtx = null;
-      }
-    }
-
-    function getLocalMicTrack(): MediaStreamTrack | null {
-      const pub = Array.from(room.localParticipant.trackPublications.values()).find(
-        (p) => p.kind === "audio" && p.source === Track.Source.Microphone && p.track
-      );
-      const localTrack = pub?.track as { mediaStreamTrack?: MediaStreamTrack } | undefined;
-      return localTrack?.mediaStreamTrack ?? null;
-    }
-
-    function tick() {
-      if (cancelled || !analyser) return;
-      const data = new Uint8Array(analyser.fftSize);
-      analyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 1) {
-        const v = (data[i] - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / data.length);
-      if (rms > 0.02) {
-        lastSignalRef.current = Date.now();
-        warnedRef.current = false;
-      } else {
-        if (!lastSignalRef.current) {
-          lastSignalRef.current = Date.now();
-        }
-        const noSignalForMs = Date.now() - lastSignalRef.current;
-        if (noSignalForMs > 5000 && !warnedRef.current) {
-          warnedRef.current = true;
-          console.warn("[MicSignalWatcher] No microphone signal detected for 5s");
-          toast.error("No microphone audio detected. Check browser permissions and input device.");
-        }
-      }
-      rafId = requestAnimationFrame(tick);
-    }
-
-    async function startMonitoring() {
-      stopMonitoring();
-      const msTrack = getLocalMicTrack();
-      if (!msTrack) return;
-      if (!msTrack.enabled || msTrack.muted) {
-        console.warn("[MicSignalWatcher] Mic track muted or disabled", { enabled: msTrack.enabled, muted: msTrack.muted });
-        toast.error("Microphone is muted/disabled in the browser.");
-        return;
-      }
-      try {
-        audioCtx = new AudioContext();
-        await audioCtx.resume();
-        const stream = new MediaStream([msTrack]);
-        source = audioCtx.createMediaStreamSource(stream);
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512;
-        source.connect(analyser);
-        lastSignalRef.current = 0;
-        warnedRef.current = false;
-        rafId = requestAnimationFrame(tick);
-      } catch (err) {
-        console.warn("[MicSignalWatcher] Failed to start audio monitor", err);
-      }
-    }
-
-    function onTrackPublished(pub: LocalTrackPublication) {
-      if (pub.kind === "audio") {
-        startMonitoring();
-      }
-    }
-
-    function onTrackUnpublished(pub: LocalTrackPublication) {
-      if (pub.kind === "audio") {
-        stopMonitoring();
-      }
-    }
-
-    startMonitoring();
-    room.localParticipant.on(RoomEvent.LocalTrackPublished, onTrackPublished);
-    room.localParticipant.on(RoomEvent.LocalTrackUnpublished, onTrackUnpublished);
-
-    return () => {
-      cancelled = true;
-      room.localParticipant.off(RoomEvent.LocalTrackPublished, onTrackPublished);
-      room.localParticipant.off(RoomEvent.LocalTrackUnpublished, onTrackUnpublished);
-      stopMonitoring();
-    };
-  }, [room]);
-
-  return null;
-}
 
 function RoomStatusPill(props: { onReadyChange?: (ready: boolean) => void }) {
   const room = useRoomContext();
@@ -1735,7 +1606,6 @@ export function AgentDetailPage() {
                 >
                   <RoomAudioRenderer />
                   <MicrophoneEnabler />
-                  <MicrophoneSignalWatcher />
                   <div className="flex h-full min-h-0 flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <RoomStatusPill onReadyChange={(ready) => setAgentReady(ready)} />
@@ -1771,5 +1641,3 @@ export function AgentDetailPage() {
     </div>
   );
 }
-
-
