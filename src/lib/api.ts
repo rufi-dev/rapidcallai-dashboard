@@ -997,14 +997,24 @@ export async function buyTwilioNumber(input: {
   workspaceId: string;
   phoneNumber: string;
   label?: string;
-}): Promise<{ phoneNumber: PhoneNumber }> {
+}): Promise<{ phoneNumber: PhoneNumber; provisioned: boolean; provisionErrors?: string[] }> {
   const res = await apiFetch(`/api/workspaces/${encodeURIComponent(input.workspaceId)}/twilio/buy-number`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ phoneNumber: input.phoneNumber, label: input.label }),
   });
   if (!res.ok) throw new Error(`buyTwilioNumber failed: ${await readError(res)}`);
-  return (await res.json()) as { phoneNumber: PhoneNumber };
+  return (await res.json()) as { phoneNumber: PhoneNumber; provisioned: boolean; provisionErrors?: string[] };
+}
+
+export async function reprovisionOutbound(phoneNumberId: string): Promise<{ ok: boolean; trunkId?: string; errors?: string[] }> {
+  const res = await apiFetch(`/api/phone-numbers/${encodeURIComponent(phoneNumberId)}/reprovision-outbound`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) throw new Error(`reprovisionOutbound failed: ${await readError(res)}`);
+  return (await res.json()) as { ok: boolean; trunkId?: string; errors?: string[] };
 }
 
 

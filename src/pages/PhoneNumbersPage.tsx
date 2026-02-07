@@ -9,6 +9,7 @@ import {
   getMe,
   listAgents,
   listPhoneNumbers,
+  reprovisionOutbound,
   searchTwilioNumbers,
   updatePhoneNumber,
 } from "../lib/api";
@@ -195,11 +196,36 @@ export function PhoneNumbersPage() {
       setSelectedId(resp.phoneNumber.id);
       setBuyOpen(false);
       setBuyResults([]);
-      toast.success("Number purchased");
+      if (resp.provisioned) {
+        toast.success("Number purchased and fully provisioned");
+      } else {
+        toast.warning("Number purchased but provisioning incomplete (status: partial)");
+        if (resp.provisionErrors?.length) {
+          resp.provisionErrors.forEach((e) => toast.error(e, { duration: 10000 }));
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Purchase failed");
     } finally {
       setBuyLoading(false);
+    }
+  }
+
+  async function onReprovisionOutbound() {
+    if (!selected) return;
+    try {
+      const resp = await reprovisionOutbound(selected.id);
+      if (resp.ok) {
+        toast.success("Outbound trunk reprovisioned successfully");
+        if (resp.errors?.length) {
+          resp.errors.forEach((e) => toast.warning(e));
+        }
+        await refresh();
+      } else {
+        toast.error("Reprovisioning failed");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reprovisioning failed");
     }
   }
 
@@ -354,9 +380,35 @@ export function PhoneNumbersPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="text-lg font-semibold">{selected.label || selected.e164}</div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    {selected.e164} · Provider: {selected.provider} · Status: {selected.status}
+                  <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+                    <span>{selected.e164}</span>
+                    <span>·</span>
+                    <span>Provider: {selected.provider}</span>
+                    <span>·</span>
+                    <span
+                      className={[
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        selected.status === "active"
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : selected.status === "partial"
+                          ? "bg-amber-500/20 text-amber-300"
+                          : "bg-slate-500/20 text-slate-300",
+                      ].join(" ")}
+                    >
+                      {selected.status}
+                    </span>
                   </div>
+                  {selected.status === "partial" && (
+                    <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      <strong>Provisioning incomplete.</strong> The outbound SIP trunk was not set up.
+                      Outbound calls will fail with SIP 403 until fixed.
+                      <div className="mt-2">
+                        <Button variant="secondary" onClick={onReprovisionOutbound} className="px-3 py-1 text-xs">
+                          Fix outbound provisioning
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="w-full max-w-md">
                   <div className="text-xs text-slate-400">Label</div>
