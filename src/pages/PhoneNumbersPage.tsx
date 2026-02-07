@@ -400,11 +400,11 @@ export function PhoneNumbersPage() {
                   </div>
                   {selected.status === "partial" && (
                     <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                      <strong>Provisioning incomplete.</strong> The outbound SIP trunk was not set up.
-                      Outbound calls will fail with SIP 403 until fixed.
+                      <strong>Provisioning incomplete.</strong> The SIP trunk was not fully set up.
+                      Inbound and/or outbound calls may fail until fixed.
                       <div className="mt-2">
                         <Button variant="secondary" onClick={onReprovisionOutbound} className="px-3 py-1 text-xs">
-                          Fix outbound provisioning
+                          Fix SIP trunk provisioning
                         </Button>
                       </div>
                     </div>
