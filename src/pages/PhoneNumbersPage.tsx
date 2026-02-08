@@ -211,12 +211,15 @@ export function PhoneNumbersPage() {
     }
   }
 
+  const [reprovisioning, setReprovisioning] = useState(false);
+
   async function onReprovisionOutbound() {
     if (!selected) return;
+    setReprovisioning(true);
     try {
       const resp = await reprovisionOutbound(selected.id);
       if (resp.ok) {
-        toast.success("Outbound trunk reprovisioned successfully");
+        toast.success("Outbound trunk reprovisioned successfully (TLS enabled)");
         if (resp.errors?.length) {
           resp.errors.forEach((e) => toast.warning(e));
         }
@@ -226,6 +229,8 @@ export function PhoneNumbersPage() {
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Reprovisioning failed");
+    } finally {
+      setReprovisioning(false);
     }
   }
 
@@ -502,7 +507,25 @@ export function PhoneNumbersPage() {
               </div>
             </Card>
 
-{/* SIP trunking is auto-configured on number purchase — no manual UI needed */}
+            <Card>
+              <div className="text-base font-semibold">SIP Trunk Configuration</div>
+              <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs text-blue-200">
+                  <strong>Reprovision Outbound Trunk:</strong> Fixes TLS transport issues for secure Twilio trunks.
+                  Use this if you're getting "SIP 488: TLS transport is required" errors on outbound calls.
+                </div>
+                <div>
+                  <Button
+                    variant="secondary"
+                    onClick={onReprovisionOutbound}
+                    disabled={reprovisioning || !selected}
+                    className="w-full"
+                  >
+                    {reprovisioning ? <GlowSpinner label="Reprovisioning…" /> : "Reprovision Outbound Trunk (Fix TLS)"}
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
       </div>
