@@ -215,6 +215,11 @@ export function PhoneNumbersPage() {
 
   async function onReprovisionOutbound() {
     if (!selected) return;
+    // Guard against concurrent reprovisioning requests
+    if (reprovisioning) {
+      toast.message("Reprovisioning already in progress");
+      return;
+    }
     setReprovisioning(true);
     try {
       const resp = await reprovisionOutbound(selected.id);
@@ -408,8 +413,13 @@ export function PhoneNumbersPage() {
                       <strong>Provisioning incomplete.</strong> The SIP trunk was not fully set up.
                       Inbound and/or outbound calls may fail until fixed.
                       <div className="mt-2">
-                        <Button variant="secondary" onClick={onReprovisionOutbound} className="px-3 py-1 text-xs">
-                          Recreate trunk (Fix TLS)
+                        <Button
+                          variant="secondary"
+                          onClick={onReprovisionOutbound}
+                          disabled={reprovisioning}
+                          className="px-3 py-1 text-xs"
+                        >
+                          {reprovisioning ? "Recreating…" : "Recreate trunk (Fix TLS)"}
                         </Button>
                       </div>
                     </div>
