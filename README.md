@@ -3,7 +3,7 @@
 This is the web dashboard UI (dark + neon green) for RapidCallAI.
 
 It talks to the API (default production):
-- `https://api.rapidcallai.com`
+- `https://api.rapidcall.ai`
 
 ## Local development
 
@@ -45,7 +45,7 @@ docker compose logs --tail=120 dashboard
 ### Verify API connectivity
 
 From a browser:
-- open `https://dashboard.rapidcallai.com`
+- open `https://dashboard.rapidcall.ai`
 - create an agent
 - start a web test call
 - check Call History and Analytics
@@ -53,6 +53,6 @@ From a browser:
 From EC2:
 
 ```bash
-curl -k https://api.rapidcallai.com/health
+curl -k https://api.rapidcall.ai/health
 ```
 

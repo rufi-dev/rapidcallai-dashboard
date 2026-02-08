@@ -7,7 +7,7 @@ RUN npm ci
 COPY . .
 
 # Set API base at build time for Vite.
-# Example: --build-arg VITE_API_BASE=https://api.rapidcallai.com
+# Example: --build-arg VITE_API_BASE=https://api.rapidcall.ai
 ARG VITE_API_BASE
 ENV VITE_API_BASE=$VITE_API_BASE
 
