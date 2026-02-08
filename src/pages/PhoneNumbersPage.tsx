@@ -224,9 +224,11 @@ export function PhoneNumbersPage() {
     try {
       const resp = await reprovisionOutbound(selected.id);
       if (resp.ok) {
-        toast.success("Outbound trunk recreated successfully with TLS transport");
         if (resp.errors?.length) {
-          resp.errors.forEach((e) => toast.warning(e));
+          toast.warning("Reprovisioned with warnings — status: partial");
+          resp.errors.forEach((e: string) => toast.warning(e));
+        } else {
+          toast.success("Reprovisioned successfully — inbound & outbound active");
         }
         await refresh();
       } else {
