@@ -13,7 +13,6 @@ import {
   PhoneOutgoing,
   Settings,
   User as UserIcon,
-  Users,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
 import { getBillingStatus, getBillingUsageSummary, getMe, logout, type BillingStatus, type BillingUsageSummaryResponse } from "../lib/api";
