@@ -219,7 +219,7 @@ export function PhoneNumbersPage() {
     try {
       const resp = await reprovisionOutbound(selected.id);
       if (resp.ok) {
-        toast.success("Outbound trunk reprovisioned successfully (TLS enabled)");
+        toast.success("Outbound trunk recreated successfully with TLS transport");
         if (resp.errors?.length) {
           resp.errors.forEach((e) => toast.warning(e));
         }
@@ -409,7 +409,7 @@ export function PhoneNumbersPage() {
                       Inbound and/or outbound calls may fail until fixed.
                       <div className="mt-2">
                         <Button variant="secondary" onClick={onReprovisionOutbound} className="px-3 py-1 text-xs">
-                          Fix SIP trunk provisioning
+                          Recreate trunk (Fix TLS)
                         </Button>
                       </div>
                     </div>
@@ -511,8 +511,9 @@ export function PhoneNumbersPage() {
               <div className="text-base font-semibold">SIP Trunk Configuration</div>
               <div className="mt-3 space-y-3">
                 <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs text-blue-200">
-                  <strong>Reprovision Outbound Trunk:</strong> Fixes TLS transport issues for secure Twilio trunks.
-                  Use this if you're getting "SIP 488: TLS transport is required" errors on outbound calls.
+                  <strong>Recreate Outbound Trunk:</strong> Deletes and recreates the LiveKit outbound trunk with correct TLS transport.
+                  Use this if you're getting "SIP 488: TLS transport is required" errors even after reprovisioning.
+                  This fixes trunks that were created with incorrect transport settings.
                 </div>
                 <div>
                   <Button
@@ -521,7 +522,7 @@ export function PhoneNumbersPage() {
                     disabled={reprovisioning || !selected}
                     className="w-full"
                   >
-                    {reprovisioning ? <GlowSpinner label="Reprovisioning…" /> : "Reprovision Outbound Trunk (Fix TLS)"}
+                    {reprovisioning ? <GlowSpinner label="Recreating trunk…" /> : "Recreate Outbound Trunk (Fix TLS)"}
                   </Button>
                 </div>
               </div>
