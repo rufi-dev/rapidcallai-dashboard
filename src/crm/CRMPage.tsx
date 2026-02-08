@@ -11,7 +11,7 @@ import {
   backfillContacts,
 } from "./api";
 import type { Contact, CallRecord, OutboundJob } from "../lib/api";
-import { Users, Plus, Upload, X, Phone, Mail, Building, Tag, Calendar, FileText } from "lucide-react";
+import { Users, Plus, Upload, Phone, Mail, Building, Calendar } from "lucide-react";
 import { SectionLoader } from "../components/loading";
 import { GlowSpinner } from "../components/loading";
 import { Drawer } from "../components/Drawer";
@@ -66,8 +66,6 @@ export function CRMPage() {
   const [newNotes, setNewNotes] = useState("");
 
   const [csvText, setCsvText] = useState("");
-
-  const selected = useMemo(() => (selectedId ? contacts.find((c) => c.id === selectedId) ?? null : null), [contacts, selectedId]);
 
   const filtered = useMemo(() => {
     let result = contacts;
@@ -545,17 +543,8 @@ export function CRMPage() {
 
       {/* Add Contact Modal */}
       {addOpen ? (
-        <Drawer open={addOpen} onClose={() => setAddOpen(false)}>
+        <Drawer open={addOpen} onClose={() => setAddOpen(false)} title="Add Contact">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold">Add Contact</div>
-              <button
-                onClick={() => setAddOpen(false)}
-                className="rounded-lg border border-white/10 bg-white/5 p-2 hover:bg-white/10"
-              >
-                <X size={16} />
-              </button>
-            </div>
             <div>
               <div className="text-xs text-slate-400">Phone (E.164) *</div>
               <div className="mt-2">
@@ -606,17 +595,8 @@ export function CRMPage() {
 
       {/* CSV Import Modal */}
       {importOpen ? (
-        <Drawer open={importOpen} onClose={() => setImportOpen(false)}>
+        <Drawer open={importOpen} onClose={() => setImportOpen(false)} title="Import Contacts (CSV)">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold">Import Contacts (CSV)</div>
-              <button
-                onClick={() => setImportOpen(false)}
-                className="rounded-lg border border-white/10 bg-white/5 p-2 hover:bg-white/10"
-              >
-                <X size={16} />
-              </button>
-            </div>
             <div className="text-xs text-slate-400">
               CSV format: phone,name,email,company,tags
               <br />
