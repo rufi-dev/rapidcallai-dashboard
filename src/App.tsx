@@ -11,6 +11,7 @@ import { BillingPage } from "./pages/BillingPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { PhoneNumbersPage } from "./pages/PhoneNumbersPage";
 import { OutboundCallsPage } from "./pages/OutboundCallsPage";
+import { CRMPage } from "./crm/CRMPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { isAuthed, signOut } from "./lib/auth";
 import { getMe } from "./lib/api";
@@ -63,6 +64,7 @@ function App() {
           <Route path="agents/:id" element={<AgentDetailPage />} />
           <Route path="knowledge" element={<KnowledgeBasePage />} />
           <Route path="phone-numbers" element={<PhoneNumbersPage />} />
+          <Route path="crm" element={<CRMPage />} />
           <Route path="outbound" element={<OutboundCallsPage />} />
           <Route path="calls" element={<CallHistoryPage />} />
           <Route path="calls/:id" element={<CallHistoryPage />} />

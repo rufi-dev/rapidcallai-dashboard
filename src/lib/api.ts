@@ -141,6 +141,24 @@ export type OutboundJobLog = {
   createdAt: number;
 };
 
+export type Contact = {
+  id: string;
+  workspaceId: string;
+  phoneE164: string;
+  name: string;
+  email: string;
+  company: string;
+  tags: string[];
+  notes: string;
+  source: "manual" | "inbound" | "outbound" | "import";
+  totalCalls: number;
+  lastCallAt: number | null;
+  lastCallOutcome: string;
+  metadata?: any;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type CallLabel = {
   id: string;
   callId: string;
@@ -1017,4 +1035,4 @@ export async function reprovisionOutbound(phoneNumberId: string): Promise<{ ok: 
   return (await res.json()) as { ok: boolean; trunkId?: string; errors?: string[] };
 }
 
-
+// Contacts / CRM
