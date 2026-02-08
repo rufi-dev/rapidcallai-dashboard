@@ -171,7 +171,6 @@ export function AppShell() {
               <NavItem to="/app/agents" icon={<Headphones size={18} />} label="Agents" />
               <NavItem to="/app/knowledge" icon={<BookOpen size={18} />} label="Knowledge Base" />
               <NavItem to="/app/phone-numbers" icon={<Phone size={18} />} label="Phone Numbers" />
-              <NavItem to="/app/crm" icon={<Users size={18} />} label="CRM" />
               <NavItem to="/app/outbound" icon={<PhoneOutgoing size={18} />} label="Outbound Calls" />
               <NavItem to="/app/calls" icon={<PhoneCall size={18} />} label="Call History" />
               <NavItem to="/app/analytics" icon={<BarChart3 size={18} />} label="Analytics" />
