@@ -6,6 +6,7 @@ import {
   createPhoneNumber,
   deletePhoneNumber,
   ensureTwilioSubaccount,
+  getInboundDiagnostics,
   getMe,
   listAgents,
   listPhoneNumbers,
@@ -212,6 +213,7 @@ export function PhoneNumbersPage() {
   }
 
   const [reprovisioning, setReprovisioning] = useState(false);
+  const [checkingInbound, setCheckingInbound] = useState(false);
 
   async function onReprovisionOutbound() {
     if (!selected) return;
@@ -238,6 +240,34 @@ export function PhoneNumbersPage() {
       toast.error(e instanceof Error ? e.message : "Reprovisioning failed");
     } finally {
       setReprovisioning(false);
+    }
+  }
+
+  async function onCheckInbound() {
+    if (!workspaceId) return;
+    if (checkingInbound) return;
+    setCheckingInbound(true);
+    try {
+      const d = await getInboundDiagnostics(workspaceId);
+      const expected = d.expectedOriginationSipUrl;
+      const hasMatch = Array.isArray(d.originationUrls) && d.originationUrls.some(
+        (u) => !("error" in u) && u.sipUrl === expected
+      );
+      if (!d.LIVEKIT_SIP_ENDPOINT) {
+        toast.error("LIVEKIT_SIP_ENDPOINT not set on server. Set it and run Reprovision.");
+      } else if (!d.twilioSipTrunkSid) {
+        toast.warning("No Twilio trunk. Run Reprovision for a phone number.");
+      } else if (!hasMatch) {
+        toast.warning(
+          "Origination URI missing or wrong. Run Reprovision for the number to fix inbound."
+        );
+      } else {
+        toast.success("Inbound setup OK: origination URI points to LiveKit.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Check failed");
+    } finally {
+      setCheckingInbound(false);
     }
   }
 
@@ -522,6 +552,19 @@ export function PhoneNumbersPage() {
             <Card>
               <div className="text-base font-semibold">SIP Trunk Configuration</div>
               <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-slate-500/30 bg-slate-500/10 px-3 py-2 text-xs text-slate-200">
+                  <strong>Check inbound setup:</strong> Verifies Twilio trunk has an origination URI to LiveKit (fixes &quot;trunking issue&quot; when calling in).
+                </div>
+                <div>
+                  <Button
+                    variant="secondary"
+                    onClick={onCheckInbound}
+                    disabled={checkingInbound || !workspaceId}
+                    className="w-full"
+                  >
+                    {checkingInbound ? <GlowSpinner label="Checking…" /> : "Check inbound setup"}
+                  </Button>
+                </div>
                 <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs text-blue-200">
                   <strong>Recreate Outbound Trunk:</strong> Deletes and recreates the LiveKit outbound trunk with correct TLS transport.
                   Use this if you're getting "SIP 488: TLS transport is required" errors even after reprovisioning.

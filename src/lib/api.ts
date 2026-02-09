@@ -1035,4 +1035,17 @@ export async function reprovisionOutbound(phoneNumberId: string): Promise<{ ok: 
   return (await res.json()) as { ok: boolean; trunkId?: string; errors?: string[] };
 }
 
-// Contacts / CRM
+export type InboundDiagnostics = {
+  LIVEKIT_SIP_ENDPOINT: string | null;
+  twilioSipTrunkSid: string | null;
+  livekitInboundTrunkId: string | null;
+  originationUrls: Array<{ sid?: string; sipUrl?: string; enabled?: boolean; error?: string }>;
+  expectedOriginationSipUrl: string | null;
+  phoneNumbers: Array<{ id: string; e164: string; inboundAgentId: string | null }>;
+};
+
+export async function getInboundDiagnostics(workspaceId: string): Promise<InboundDiagnostics> {
+  const res = await apiFetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/inbound-diagnostics`);
+  if (!res.ok) throw new Error(`getInboundDiagnostics failed: ${await readError(res)}`);
+  return (await res.json()) as InboundDiagnostics;
+}
