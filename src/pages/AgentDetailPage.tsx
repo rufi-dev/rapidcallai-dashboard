@@ -497,7 +497,7 @@ export function AgentDetailPage() {
   const previewUrlRef = useRef<string | null>(null);
 
   // Background audio
-  const [bgAudioPreset, setBgAudioPreset] = useState<"none" | "office" | "keyboard">("none");
+  const [bgAudioPreset, setBgAudioPreset] = useState<"none" | "office" | "keyboard" | "office1" | "office2">("none");
   const [bgAmbientVolume, setBgAmbientVolume] = useState(0.7);
   const [bgThinkingVolume, setBgThinkingVolume] = useState(0.7);
 
@@ -682,7 +682,7 @@ export function AgentDetailPage() {
       }
 
       // Background audio
-      setBgAudioPreset((a.backgroundAudio?.preset as "none" | "office" | "keyboard") ?? "none");
+      setBgAudioPreset((a.backgroundAudio?.preset as "none" | "office" | "keyboard" | "office1" | "office2") ?? "none");
       setBgAmbientVolume(a.backgroundAudio?.ambientVolume ?? 0.7);
       setBgThinkingVolume(a.backgroundAudio?.thinkingVolume ?? 0.7);
 
@@ -1418,6 +1418,8 @@ export function AgentDetailPage() {
                   { key: "none", label: "None", desc: "No background audio" },
                   { key: "office", label: "Office Ambience", desc: "Busy office chatter & ambient noise" },
                   { key: "keyboard", label: "Keyboard Typing", desc: "Operator typing sounds" },
+                  { key: "office1", label: "Office 1 (custom)", desc: "Custom: Office1.mp3" },
+                  { key: "office2", label: "Office 2 (custom)", desc: "Custom: Office2.mp3" },
                 ] as const).map((opt) => (
                   <button
                     key={opt.key}

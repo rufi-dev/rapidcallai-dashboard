@@ -21,7 +21,7 @@ export type AgentProfile = {
     voiceId?: string | null;
   };
   backgroundAudio?: {
-    preset?: "none" | "office" | "keyboard";
+    preset?: "none" | "office" | "keyboard" | "office1" | "office2";
     ambientVolume?: number;
     thinkingVolume?: number;
   };
